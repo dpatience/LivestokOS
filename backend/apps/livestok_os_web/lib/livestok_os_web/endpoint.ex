@@ -22,6 +22,11 @@ defmodule LivestokOsWeb.Endpoint do
     gzip: not code_reloading?,
     only: LivestokOsWeb.static_paths()
 
+  # Strip blank Origin headers (e.g. `Origin: ""`) sent by some HTTP clients
+  # before CORSPlug sees them — cors_plug 3.0.3 has no clause for "" and raises
+  # a FunctionClauseError.  A blank Origin is treated the same as an absent one.
+  plug LivestokOsWeb.Plugs.NormalizeOrigin
+
   # CORS must be early in the pipeline so preflight OPTIONS requests get
   # headers before later plugs potentially raise or halt.
   # In production, restrict origins to the FRONTEND_URL env var.

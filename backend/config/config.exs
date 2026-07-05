@@ -35,7 +35,21 @@ config :livestok_os_ingest, Oban,
      crontab: [
        {"@daily", LivestokOs.Ingest.DownsamplerWorker},
        # Herd centroid / rotation detection — runs every 6 hours for pasture farms
-       {"0 */6 * * *", LivestokOs.Operations.HerdCentroidWorker}
+       {"0 */6 * * *", LivestokOs.Operations.HerdCentroidWorker},
+
+       # ── AI Research & Proposal Pipeline ────────────────────────────────────
+       # Ingests new veterinary research articles weekly (Sunday 02:00 UTC).
+       # Summaries are vectorised into pgvector and appended to a monthly
+       # Markdown digest under priv/ai_research/.
+       {"0 2 * * 0", LivestokOs.AI.ResearchIngestionWorker},
+
+       # Observes 30-day farm performance patterns and writes a GrazingCoach
+       # weight-adjustment proposal to priv/ai_proposals/ (1st of each month).
+       {"0 3 1 * *", LivestokOs.AI.OptimizationProposalWorker},
+
+       # Reviews recent vet-consult interactions and proposes an improved system
+       # prompt to priv/prompts/ for human review (1st of each month, 04:00 UTC).
+       {"0 4 1 * *", LivestokOs.AI.PromptEvolutionWorker}
      ]},
     Oban.Plugins.Pruner
   ],

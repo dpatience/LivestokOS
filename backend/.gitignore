@@ -25,17 +25,36 @@ erl_crash.dump
 # Ignore package tarball (built via "mix hex.build").
 livestok_os-*.tar
 
+# Dialyzer PLT files
+/priv/plts/
+*.plt
+*.plt.hash
 
-# Environment variables
+# ElixirLS / IDE build artifacts
+.elixir_ls/
+.elixir-tools/
+
+# Environment variables — never commit secrets
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
+!.env.example
 
-# Local development files
+# OS and editor noise
 .DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
 .idea/
+
+# Local editor settings (keep shared launch configs out of git)
 .vscode/
-.cursor/
-.cursor/
+!.vscode/extensions.json
+!.vscode/settings.json.example
+
+# AI-generated runtime outputs (keep directory structure via .gitkeep)
+apps/livestok_os_ai/priv/ai_research/*
+!apps/livestok_os_ai/priv/ai_research/.gitkeep
+apps/livestok_os_ai/priv/ai_proposals/*
+!apps/livestok_os_ai/priv/ai_proposals/.gitkeep
+apps/livestok_os_ai/priv/prompts/vet_consult_system_proposed_*.txt

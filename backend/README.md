@@ -1,190 +1,196 @@
 # LivestokOS Backend
 
-We are building LivestokOS as a backend-first livestock operating system for farms, herds, telemetry, grazing operations, digital twins, satellite insights, geofencing, and zero-grazing workflows.
+Backend-first livestock operating system for farms, herds, telemetry, grazing
+operations, digital twins, satellite insights, geofencing, carbon accounting,
+and zero-grazing workflows — built as an **Elixir umbrella** with strict OTP
+fault isolation between subsystems.
 
-At this moment, the repository is centered on this Phoenix API application in `backend/`. The product, repository, and internal Elixir application all use the LivestokOS identity: OTP app `:livestok_os`, modules under `LivestokOs`, and the web layer under `LivestokOsWeb`.
+---
 
-## Design Principles
+## Umbrella architecture
 
-We are building LivestokOS to operate at farm-network scale: many farms, each with many cows, each generating continuous telemetry. Scaling is a first-class concern from the start.
+Each app owns a bounded concern. All apps share one PostgreSQL database via
+`LivestokOs.Repo` in `livestok_os_core`.
+
+```text
+backend/
+├── config/                          Shared configuration
+├── mix.exs                          Umbrella root
+└── apps/
+    ├── livestok_os_core/            Schemas, Repo, migrations, domain contexts
+    ├── livestok_os_ingest/          LoRaWAN ingest, Broadway pipeline, Oban
+    ├── livestok_os_ops/             Grazing, geofences, carbon, zero-grazing
+    ├── livestok_os_twin/            Per-cow digital twin GenServers
+    ├── livestok_os_satellite/       NDVI jobs, grass recovery (isolated)
+    ├── livestok_os_ai/              Vet consult RAG, research & propose loop
+    └── livestok_os_web/             Phoenix HTTP API (Bandit + Guardian JWT)
+```
+
+| App | README | One-line purpose |
+|-----|--------|------------------|
+| `livestok_os_core` | [README](apps/livestok_os_core/README.md) | Shared domain layer and database |
+| `livestok_os_ingest` | [README](apps/livestok_os_ingest/README.md) | Telemetry spine and Oban scheduler |
+| `livestok_os_ops` | [README](apps/livestok_os_ops/README.md) | Farm operations and carbon ledger |
+| `livestok_os_twin` | [README](apps/livestok_os_twin/README.md) | Real-time per-cow digital twins |
+| `livestok_os_satellite` | [README](apps/livestok_os_satellite/README.md) | Satellite NDVI (fault-isolated) |
+| `livestok_os_ai` | [README](apps/livestok_os_ai/README.md) | AI consult, RAG, research pipelines |
+| `livestok_os_web` | [README](apps/livestok_os_web/README.md) | HTTP API and authentication |
+
+### Dependency graph
+
+```text
+livestok_os_core
+    ├── livestok_os_ai ──► livestok_os_ops
+    ├── livestok_os_ops
+    ├── livestok_os_twin ──► ops
+    ├── livestok_os_ingest ──► core, ops, twin
+    ├── livestok_os_satellite ──► core
+    └── livestok_os_web ──► core, ingest, ops, twin, ai
+```
+
+---
+
+## Design principles
 
 - **Farm-scoped multi-tenancy** — every protected query is scoped to the authenticated user's farm.
 - **PostgreSQL-first** — indexed, paginated reads; avoid loading unbounded collections into memory.
 - **OTP for hot paths** — digital twins and real-time state run as supervised processes, not ad-hoc tasks.
-- **Ingestion over chatty reads** — telemetry and LoRaWAN data flow through dedicated ingest endpoints.
-- **Explicit boundaries** — domain logic lives in contexts (`Accounts`, `Inventory`, `Telemetry`, etc.), not controllers.
+- **Fault isolation** — satellite and AI subsystems can fail without breaking geofencing, ingest, or the HTTP API.
+- **Ingestion over chatty reads** — telemetry flows through a dedicated Broadway pipeline.
+- **AI research and propose** — the AI grows the RAG corpus and writes Markdown proposals; humans merge changes.
 
-## Where We Are Now
-
-The backend is already taking shape as a JSON API built with Elixir, Phoenix, Ecto, PostgreSQL, and Guardian JWT authentication. We are currently working from one main application directory:
-
-```text
-LivestokOS/
-└── backend/
-    ├── config/
-    ├── lib/
-    ├── priv/
-    ├── test/
-    └── mix.exs
-```
-
-The main backend entry points are:
-
-- `lib/livestok_os/application.ex` starts the OTP supervision tree.
-- `lib/livestok_os_web/endpoint.ex` serves the Phoenix endpoint.
-- `lib/livestok_os_web/router.ex` defines the API routes.
-- `lib/livestok_os/repo.ex` connects Ecto to PostgreSQL.
-- `priv/repo/migrations/` holds the database migrations.
-- `priv/repo/seeds.exs` creates starter data for local development.
-
-The supervision tree currently starts telemetry, the database repo, DNS clustering, Phoenix PubSub, the digital twin registry and supervisor, and the Phoenix endpoint.
-
-## What We Are Building
-
-We are building the backend around these domain areas:
-
-- Accounts and authentication for users, farm ownership, and role-based access.
-- Inventory for farms, cows, animals, and devices.
-- Telemetry for sensor readings, ingest endpoints, and farm summaries.
-- Operations for grazing events, alerts, health checks, methane-related logic, culling advice, and grazing coaching.
-- Digital twins for per-cow runtime processes, state logs, and behavior history.
-- Satellite records for NDVI, image history, galleries, and capture workflows.
-- Infrastructure for geofences, geofence events, LoRa gateways, and LoRaWAN ingest.
-- Zero grazing for feed events, biogas records, and inhibitor doses.
-- Admin endpoints for super-admin farm and telemetry maintenance.
-
-The API is farm-scoped after authentication. Public endpoints handle registration, login, and LoRaWAN gateway ingest. Protected endpoints require a Bearer token and are scoped through the current user's farm access.
+---
 
 ## Stack
 
-- Elixir `~> 1.15`
-- Phoenix `~> 1.8.3`
-- PostgreSQL through Ecto and Postgrex
-- Bandit as the HTTP server
-- Guardian for JWT authentication
-- CORS Plug for browser access
-- Req for satellite API calls
-- Swoosh is available for email integration
+| Layer | Technology |
+|-------|------------|
+| Language | Elixir `~> 1.15` |
+| Web | Phoenix `~> 1.8`, Bandit |
+| Database | PostgreSQL 15+ with PostGIS and pgvector |
+| Auth | Guardian JWT |
+| Jobs | Oban (single instance in ingest app) |
+| Pipeline | Broadway (telemetry backpressure) |
+| AI | OpenAI-compatible API via Req |
+| HTTP client | Req |
 
-## Running The Backend
+---
 
-Run commands from the `backend/` directory:
+## Quick start
 
 ```bash
 cd backend
-mix setup
-mix phx.server
+cp .env.example .env          # fill in DATABASE_URL, secrets, API keys
+mix setup                     # deps, create DB, migrate, seed
+mix phx.server                # http://localhost:4000
 ```
 
-The API runs on port `4000` by default:
-
-```text
-http://localhost:4000
-```
-
-The setup task installs dependencies, creates the database, runs migrations, and loads seeds. The seed file creates a starter super-admin user and sample farm data for local development.
-
-## Useful Commands
+### Useful commands
 
 ```bash
-mix deps.get
-mix ecto.setup
-mix ecto.reset
-mix phx.server
-mix test
-mix precommit
+mix test                      # full umbrella test suite
+mix test apps/livestok_os_ai  # single app
+mix ecto.reset                # drop + recreate + seed
+mix precommit                 # compile, format, test (CI-ready)
 ```
 
-`mix precommit` compiles with warnings as errors, unlocks unused dependencies, formats the project, and runs the test suite.
+---
+
+## Data flow
+
+```text
+LoRaWAN gateway
+    → POST /api/lorawan/ingest
+    → Broadway Ingest.Pipeline
+    → SensorReading (PostgreSQL)
+    → GeofenceEnforcer (ops)
+    → CowProcess digital twin (twin)
+    → Alerts + CowStateLog
+```
+
+Scheduled jobs (Oban cron):
+
+| Schedule | Worker | App |
+|----------|--------|-----|
+| Daily | DownsamplerWorker | ingest |
+| Every 6h | HerdCentroidWorker | ops |
+| Weekly Sun 02:00 | ResearchIngestionWorker | ai |
+| Monthly 1st 03:00 | OptimizationProposalWorker | ai |
+| Monthly 1st 04:00 | PromptEvolutionWorker | ai |
+
+---
 
 ## Configuration
 
-Development and test database settings live in `config/dev.exs` and `config/test.exs`. Runtime production settings are loaded from environment variables in `config/runtime.exs`.
+Copy `.env.example` to `.env` and set:
 
-Important runtime variables include:
+| Variable | Purpose |
+|----------|---------|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `SECRET_KEY_BASE` | Phoenix cookie signing |
+| `GUARDIAN_SECRET_KEY` | JWT signing |
+| `QR_SECRET` | Digital passport HMAC |
+| `OPENAI_API_KEY` | AI consult and embeddings |
+| `SATELLITE_API_KEY` | Copernicus NDVI (omit for mock mode) |
+| `FRONTEND_URL` | CORS allowed origins (comma-separated) |
+| `PORT` | HTTP port (default 4000) |
 
-- `PORT`
-- `DATABASE_URL`
-- `SECRET_KEY_BASE`
-- `GUARDIAN_SECRET_KEY`
-- `QR_SECRET`
-- `SATELLITE_API_KEY`
-- `PHX_HOST`
-- `DNS_CLUSTER_QUERY`
-- `POOL_SIZE`
+Runtime config is loaded from `config/runtime.exs`.
 
-There is also a local `.env` file in the backend directory. At the moment, the app depends on normal environment loading from the shell or deployment environment, so values in `.env` should be treated as local developer convenience unless explicit loading is wired into the application.
+---
 
-## API Shape
+## API overview
 
-Public API endpoints currently include:
+Public:
 
 ```text
+GET  /api/health
 POST /api/register
 POST /api/login
 POST /api/lorawan/ingest
 ```
 
-Authenticated and farm-scoped API areas currently include:
+All other `/api/*` routes require `Authorization: Bearer <jwt>` and are
+farm-scoped. See [livestok_os_web README](apps/livestok_os_web/README.md) for
+the full route list.
 
-```text
-/api/animals
-/api/cows
-/api/farms
-/api/devices
-/api/sensor_readings
-/api/telemetry
-/api/grazing_events
-/api/alerts
-/api/cows/:cow_id/twin
-/api/cows/:cow_id/behavior
-/api/cows/:cow_id/state_logs
-/api/digital_twins/active
-/api/satellite
-/api/feed_events
-/api/biogas_records
-/api/inhibitor_doses
-/api/geofences
-/api/geofence_events
-/api/admin
-```
-
-Authentication uses Guardian JWT tokens. Registration can create a user by itself or create a user together with a farm. Login returns a token that clients send as a Bearer token on protected requests.
+---
 
 ## Database
 
-We are using Ecto migrations to define and evolve the PostgreSQL schema. The current migrations build the main livestock platform schema and then restructure it toward a multi-tenant, farm-scoped system with digital twin, telemetry, satellite, geofencing, LoRaWAN, and zero-grazing support.
+Migrations live in `apps/livestok_os_core/priv/repo/migrations/`.
 
-To rebuild a local database:
-
-```bash
-mix ecto.reset
-```
-
-To run only migrations:
+Extensions: `PostGIS` (geofences), `pgvector` (AI embeddings), `Oban` job table.
 
 ```bash
 mix ecto.migrate
+mix ecto.reset    # destructive — dev only
 ```
+
+Seeds create a super-admin user and sample farm data:
+`apps/livestok_os_core/priv/repo/seeds.exs`.
+
+---
 
 ## Tests
 
-The test suite lives in `test/` and uses Phoenix's generated ConnCase/DataCase structure with fixtures under `test/support/fixtures/`.
-
-Run tests with:
-
 ```bash
-mix test
+mix test                                              # all apps
+mix test apps/livestok_os_web/test/chaos_test.exs     # fault isolation
+mix test apps/livestok_os_satellite/test/.../isolation_test.exs
 ```
 
-Current tests cover several context and controller areas, including inventory, telemetry, operations, farms, cows, alerts, grazing events, and sensor readings.
+Each umbrella app has its own `test/` directory. See per-app READMEs for
+coverage details.
 
-## Current Build Notes
+---
 
-We are in a backend-focused stage. The core API, contexts, routes, migrations, authentication, and many domain modules are present, but there are still cleanup tasks before treating the backend as stable:
+## Health check
 
-- Decide whether the frontend origin should be `localhost:3000`, `localhost:5173`, or an environment-driven value.
-- Make local secret handling cleaner before production use.
-- Add API documentation or OpenAPI output once the route surface settles.
+```bash
+curl http://localhost:4000/api/health
+```
 
-This README should evolve as we keep building the backend.
+Returns subsystem supervisor status and database connectivity. Used by chaos
+tests that kill individual supervisors and verify OTP restarts them while the
+HTTP layer stays up.

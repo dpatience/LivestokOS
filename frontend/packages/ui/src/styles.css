@@ -1,0 +1,40 @@
+@theme {
+  --color-farm-primary: #0b5e2e;
+  --color-farm-primary-hover: #094a24;
+  --color-farm-accent: #d97706;
+  --color-farm-surface: #ffffff;
+  --color-farm-surface-alt: #f3f4f6;
+  --color-farm-text: #111827;
+  --color-farm-text-muted: #4b5563;
+  --color-farm-border: #d1d5db;
+  --color-farm-danger: #b91c1c;
+  --color-farm-success: #15803d;
+
+  --color-admin-primary: #1e3a5f;
+  --color-admin-primary-hover: #152a45;
+  --color-admin-accent: #2563eb;
+  --color-admin-surface: #ffffff;
+  --color-admin-surface-alt: #f8fafc;
+  --color-admin-text: #0f172a;
+  --color-admin-text-muted: #475569;
+  --color-admin-border: #cbd5e1;
+  --color-admin-danger: #dc2626;
+  --color-admin-success: #16a34a;
+
+  --spacing-tap: 2.75rem;
+  --min-height-tap: 2.75rem;
+  --min-width-tap: 2.75rem;
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@layer components {
+  .tap-target {
+    min-height: var(--min-height-tap);
+    min-width: var(--min-width-tap);
+  }
+}
