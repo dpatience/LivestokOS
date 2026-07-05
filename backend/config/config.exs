@@ -1,18 +1,15 @@
-# This file is responsible for configuring your application
-# and its dependencies with the aid of the Config module.
-#
-# This configuration file is loaded before any dependency and
-# is restricted to this project.
+# This file is responsible for configuring your umbrella applications
+# and their dependencies with the aid of the Config module.
 
-# General application configuration
 import Config
 
-config :livestok_os,
+config :livestok_os_core,
   ecto_repos: [LivestokOs.Repo],
   generators: [timestamp_type: :utc_datetime]
 
-# Configure the endpoint
-config :livestok_os, LivestokOsWeb.Endpoint,
+config :livestok_os_core, LivestokOs.Repo, types: LivestokOs.PostgrexTypes
+
+config :livestok_os_web, LivestokOsWeb.Endpoint,
   url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
@@ -22,26 +19,26 @@ config :livestok_os, LivestokOsWeb.Endpoint,
   pubsub_server: LivestokOs.PubSub,
   live_view: [signing_salt: "EKHHVC2q"]
 
-# Configure the mailer
-#
-# By default it uses the "Local" adapter which stores the emails
-# locally. You can see the emails in your browser, at "/dev/mailbox".
-#
-# For production it's recommended to configure a different adapter
-# at the `config/runtime.exs`.
-config :livestok_os, LivestokOs.Mailer, adapter: Swoosh.Adapters.Local
+config :livestok_os_web, LivestokOs.Mailer, adapter: Swoosh.Adapters.Local
+config :livestok_os_web, LivestokOs.Guardian, issuer: "livestok_os"
 
-# Configure Guardian (secret_key loaded at runtime in runtime.exs)
-config :livestok_os, LivestokOs.Guardian, issuer: "livestok_os"
-
-# Configure Elixir's Logger
 config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",
   metadata: [:request_id]
 
-# Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
-# Import environment specific config. This must remain at the bottom
-# of this file so it overrides the configuration defined above.
+config :livestok_os_ingest, Oban,
+  repo: LivestokOs.Repo,
+  plugins: [
+    {Oban.Plugins.Cron,
+     crontab: [
+       {"@daily", LivestokOs.Ingest.DownsamplerWorker},
+       # Herd centroid / rotation detection — runs every 6 hours for pasture farms
+       {"0 */6 * * *", LivestokOs.Operations.HerdCentroidWorker}
+     ]},
+    Oban.Plugins.Pruner
+  ],
+  queues: [downsampling: 1, satellite: 2, research: 1]
+
 import_config "#{config_env()}.exs"

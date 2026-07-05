@@ -1,7 +1,7 @@
 import Config
 
 # Configure your database
-config :livestok_os, LivestokOs.Repo,
+config :livestok_os_core, LivestokOs.Repo,
   username: "postgres",
   password: "Patience@159!",
   hostname: "localhost",
@@ -16,7 +16,7 @@ config :livestok_os, LivestokOs.Repo,
 # The watchers configuration can be used to run external
 # watchers to your application. For example, we can use it
 # to bundle .js and .css sources.
-config :livestok_os, LivestokOsWeb.Endpoint,
+config :livestok_os_web, LivestokOsWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
   http: [ip: {127, 0, 0, 1}],
@@ -50,7 +50,7 @@ config :livestok_os, LivestokOsWeb.Endpoint,
 # different ports.
 
 # Enable dev routes for dashboard and mailbox
-config :livestok_os, dev_routes: true
+config :livestok_os_web, dev_routes: true
 
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"
@@ -64,3 +64,9 @@ config :phoenix, :plug_init_mode, :runtime
 
 # Disable swoosh api client as it is only required for production adapters.
 config :swoosh, :api_client, false
+
+# Allow both frontend PWAs during local development (farm-app :5173, admin-app :5174).
+config :livestok_os_web, :cors_origins, [
+  "http://localhost:5173",
+  "http://localhost:5174"
+]

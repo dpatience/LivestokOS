@@ -1,0 +1,21 @@
+{
+  "name": "livestok-os-frontend",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "farm-app",
+    "admin-app"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "build:farm": "npm run build -w farm-app",
+    "build:admin": "npm run build -w admin-app",
+    "dev:farm": "npm run dev -w farm-app",
+    "dev:admin": "npm run dev -w admin-app",
+    "lint": "npm run lint --workspaces --if-present",
+    "generate-icons": "node scripts/generate-pwa-icons.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
