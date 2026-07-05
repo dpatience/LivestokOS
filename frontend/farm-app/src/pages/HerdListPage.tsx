@@ -1,5 +1,5 @@
-import type { Cow } from "@livestok/api";
-import { Button, Field, SelectInput, TextInput } from "@livestok/ui";
+import type { CacheMeta, Cow } from "@livestok/api";
+import { Button, Field, SelectInput, StalenessBadge, TextInput, farmCardRow, farmLinkPrimary } from "@livestok/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { formatApiError, useAuth } from "../context/AuthContext";
@@ -10,18 +10,20 @@ type SortKey = HerdSortKey;
 export function HerdListPage() {
   const { resources } = useAuth();
   const [cows, setCows] = useState<Cow[]>([]);
+  const [cacheMeta, setCacheMeta] = useState<CacheMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortKey, setSortKey] = useState<SortKey>("name");
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (forceRefresh = false) => {
     setLoading(true);
     setError("");
     try {
-      const { data } = await resources.listCows({ limit: 200 });
+      const { data, meta } = await resources.listCowsCached({ limit: 200 }, { forceRefresh });
       setCows(data);
+      setCacheMeta(meta);
     } catch (err) {
       setError(formatApiError(err));
     } finally {
@@ -45,14 +47,16 @@ export function HerdListPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-xl font-bold text-farm-text">Herd</h2>
-        <Link
-          to="/herd/new"
-          className="tap-target inline-flex items-center justify-center rounded-farm bg-farm-primary px-4 text-farm-body font-semibold text-white"
-        >
-          + Add cow
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          {cacheMeta ? (
+            <StalenessBadge fetchedAt={cacheMeta.fetchedAt} isStale={cacheMeta.isStale} variant="farm" />
+          ) : null}
+          <Link to="/herd/new" className={farmLinkPrimary}>
+            + Add cow
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
@@ -105,10 +109,7 @@ export function HerdListPage() {
         <ul className="space-y-2">
           {filtered.map((cow) => (
             <li key={cow.id}>
-              <Link
-                to={`/herd/${cow.id}`}
-                className="tap-target block rounded-farm border border-farm-border bg-farm-surface-alt px-4 py-3"
-              >
+              <Link to={`/herd/${cow.id}`} className={farmCardRow}>
                 <div className="flex items-center justify-between gap-2">
                   <div>
                     <p className="font-semibold text-farm-text">{cow.name}</p>
@@ -126,7 +127,11 @@ export function HerdListPage() {
         </ul>
       )}
 
-      <Button variant="farm" className="w-full !bg-farm-surface-alt !text-farm-text border border-farm-border" onClick={() => void load()}>
+      <Button
+        variant="farm"
+        className="w-full !bg-farm-surface-alt !text-farm-text border border-farm-border"
+        onClick={() => void load(true)}
+      >
         Refresh
       </Button>
     </div>

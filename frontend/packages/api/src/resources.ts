@@ -20,6 +20,23 @@ import type {
   InhibitorDose,
   InhibitorDosePayload,
 } from "./diary";
+import {
+  clearResponseCache,
+  fetchWithCache,
+  type CacheMeta,
+  type CachedListResult,
+} from "./response-cache";
+
+export type { CacheMeta, CachedListResult };
+export { clearResponseCache };
+
+const HERD_CACHE_TTL_MS = 5 * 60 * 1000;
+const GEOFENCE_CACHE_TTL_MS = 10 * 60 * 1000;
+
+export interface CachedListResponse<T> {
+  data: T[];
+  meta: CacheMeta;
+}
 
 function wrapCow(payload: CowPayload) {
   return { cow: payload };
@@ -72,11 +89,47 @@ export class FarmResources {
     return this.client.request<ListResponse<Cow>>(`/cows${qs}`);
   }
 
+  /** Cached herd list — safe to show stale; never used for alerts/telemetry. */
+  async listCowsCached(
+    params?: Record<string, string | number>,
+    options?: { forceRefresh?: boolean },
+  ): Promise<CachedListResponse<Cow>> {
+    const qs = params ? `?${new URLSearchParams(params as Record<string, string>)}` : "";
+    const key = `cows${qs}`;
+    const result = await fetchWithCache(
+      key,
+      async () => {
+        const res = await this.listCows(params);
+        return res.data;
+      },
+      { ttlMs: HERD_CACHE_TTL_MS, forceRefresh: options?.forceRefresh },
+    );
+    return { data: result.data, meta: result.meta };
+  }
+
+  async listGeofencesCached(
+    params?: Record<string, string | number>,
+    options?: { forceRefresh?: boolean },
+  ): Promise<CachedListResponse<Geofence>> {
+    const qs = params ? `?${new URLSearchParams(params as Record<string, string>)}` : "";
+    const key = `geofences${qs}`;
+    const result = await fetchWithCache(
+      key,
+      async () => {
+        const res = await this.listGeofences(params);
+        return res.data;
+      },
+      { ttlMs: GEOFENCE_CACHE_TTL_MS, forceRefresh: options?.forceRefresh },
+    );
+    return { data: result.data, meta: result.meta };
+  }
+
   getCow(id: number) {
     return this.client.request<ItemResponse<Cow>>(`/cows/${id}`);
   }
 
   createCow(payload: CowPayload) {
+    clearResponseCache("cows");
     return this.client.request<ItemResponse<Cow>>("/cows", {
       method: "POST",
       body: JSON.stringify(wrapCow(payload)),
@@ -84,6 +137,7 @@ export class FarmResources {
   }
 
   updateCow(id: number, payload: Partial<CowPayload>) {
+    clearResponseCache("cows");
     return this.client.request<ItemResponse<Cow>>(`/cows/${id}`, {
       method: "PUT",
       body: JSON.stringify(wrapCow(payload as CowPayload)),
@@ -91,6 +145,7 @@ export class FarmResources {
   }
 
   deleteCow(id: number) {
+    clearResponseCache("cows");
     return this.client.request<void>(`/cows/${id}`, { method: "DELETE" });
   }
 
@@ -100,13 +155,23 @@ export class FarmResources {
   }
 
   createGeofence(payload: GeofencePayload) {
+    clearResponseCache("geofences");
     return this.client.request<ItemResponse<Geofence>>("/geofences", {
       method: "POST",
       body: JSON.stringify(wrapGeofence(payload)),
     });
   }
 
+  updateGeofence(id: number, payload: Partial<GeofencePayload>) {
+    clearResponseCache("geofences");
+    return this.client.request<ItemResponse<Geofence>>(`/geofences/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(wrapGeofence(payload as GeofencePayload)),
+    });
+  }
+
   deleteGeofence(id: number) {
+    clearResponseCache("geofences");
     return this.client.request<void>(`/geofences/${id}`, { method: "DELETE" });
   }
 

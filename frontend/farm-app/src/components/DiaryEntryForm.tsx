@@ -1,13 +1,14 @@
 import type { DiaryEntryType } from "@livestok/api";
-import { Button, Field, SelectInput, TextInput } from "@livestok/ui";
+import { Button, Field, Leaf, Pill, SelectInput, Stethoscope, TextInput, Wheat, farmChip, farmTile } from "@livestok/ui";
 import { useState } from "react";
 import type { DiarySubmission } from "../lib/diary-sync";
+import type { LucideIcon } from "@livestok/ui";
 
-const ENTRY_TYPES: { type: DiaryEntryType; label: string; icon: string }[] = [
-  { type: "feed", label: "Feed", icon: "🌾" },
-  { type: "inhibitor", label: "Medication", icon: "💊" },
-  { type: "health", label: "Health", icon: "🩺" },
-  { type: "grazing", label: "Grazing", icon: "🌿" },
+const ENTRY_TYPES: { type: DiaryEntryType; label: string; Icon: LucideIcon }[] = [
+  { type: "feed", label: "Feed", Icon: Wheat },
+  { type: "inhibitor", label: "Medication", Icon: Pill },
+  { type: "health", label: "Health", Icon: Stethoscope },
+  { type: "grazing", label: "Grazing", Icon: Leaf },
 ];
 
 const FEED_PRESETS = ["Hay", "Silage", "Concentrate", "Mineral"];
@@ -96,21 +97,19 @@ export function DiaryEntryForm({
       <p className="text-farm-body font-bold text-farm-text">Log for {cowName}</p>
 
       <div className="grid grid-cols-2 gap-2">
-        {ENTRY_TYPES.map((t) => (
+        {ENTRY_TYPES.map(({ type, label, Icon }) => (
           <button
-            key={t.type}
+            key={type}
             type="button"
-            className={`tap-target flex flex-col items-center justify-center rounded-farm border-2 py-4 ${
-              entryType === t.type
+            className={`${farmTile} ${
+              entryType === type
                 ? "border-farm-primary bg-farm-primary/10"
                 : "border-farm-border"
             }`}
-            onClick={() => setEntryType(t.type)}
+            onClick={() => setEntryType(type)}
           >
-            <span className="text-2xl" aria-hidden>
-              {t.icon}
-            </span>
-            <span className="text-sm font-semibold">{t.label}</span>
+            <Icon size={28} aria-hidden className="mb-1 text-farm-primary" />
+            <span className="text-sm font-semibold">{label}</span>
           </button>
         ))}
       </div>
@@ -122,8 +121,8 @@ export function DiaryEntryForm({
               <button
                 key={p}
                 type="button"
-                className={`tap-target rounded-full px-4 py-2 text-sm font-semibold ${
-                  feedType === p ? "bg-farm-primary text-white" : "bg-farm-surface-alt border border-farm-border"
+                className={`${farmChip} ${
+                  feedType === p ? "border-farm-primary bg-farm-primary text-white" : "border-farm-border bg-farm-surface-alt"
                 }`}
                 onClick={() => setFeedType(p)}
               >

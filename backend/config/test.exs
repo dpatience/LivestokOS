@@ -45,5 +45,5 @@ config :livestok_os_ops, start_grazing_worker: false
 
 # AI app: use mock LLM client in tests
 config :livestok_os_ai, :llm_client, LivestokOs.AI.MockLLMClient
-config :livestok_os_ai, :openai_api_key, "test-key"
-config :livestok_os_ai, :openai_base_url, "http://localhost:9999"
+config :livestok_os_ai, :llm_api_key, "test-key"
+config :livestok_os_ai, :llm_api_base_url, "http://localhost:9999/v1"

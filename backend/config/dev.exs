@@ -65,8 +65,12 @@ config :phoenix, :plug_init_mode, :runtime
 # Disable swoosh api client as it is only required for production adapters.
 config :swoosh, :api_client, false
 
-# Allow both frontend PWAs during local development (farm-app :5173, admin-app :5174).
+# Allow both frontend PWAs during local development and preview:
+# farm-app  — dev :5173, preview :4173
+# admin-app — dev :5174, preview :4174
 config :livestok_os_web, :cors_origins, [
+  "http://localhost:4173",
+  "http://localhost:4174",
   "http://localhost:5173",
   "http://localhost:5174"
 ]

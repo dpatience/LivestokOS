@@ -13,8 +13,19 @@ defmodule LivestokOs.Infrastructure do
 
   def list_geofences(opts \\ %{}) do
     Geofence
+    |> maybe_filter_farm(opts)
     |> paginate(opts)
     |> Repo.all()
+  end
+
+  defp maybe_filter_farm(query, opts) do
+    farm_id = Map.get(opts, :farm_id) || Map.get(opts, "farm_id")
+
+    case farm_id do
+      nil -> query
+      id when is_integer(id) -> from(g in query, where: g.farm_id == ^id)
+      id when is_binary(id) -> from(g in query, where: g.farm_id == ^String.to_integer(id))
+    end
   end
 
   def get_geofence!(id), do: Repo.get!(Geofence, id)

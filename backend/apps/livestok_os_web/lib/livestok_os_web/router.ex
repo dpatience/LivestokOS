@@ -63,6 +63,7 @@ defmodule LivestokOsWeb.Router do
 
     # Inventory
     resources "/farms", FarmController, except: [:new, :edit]
+    get "/cows/locations", DigitalTwinController, :locations
     resources "/cows", CowController, except: [:new, :edit]
     post "/cows/:id/analyze", CowController, :analyze
     resources "/devices", DeviceController, except: [:new, :edit]
@@ -76,6 +77,25 @@ defmodule LivestokOsWeb.Router do
     # Operations
     resources "/grazing_events", GrazingEventController, except: [:new, :edit]
     resources "/alerts", AlertController, only: [:index, :update]
+
+    # Stage 5: Reproduction / dairy (all grazing modes — not feature-gated)
+    get "/breeding_records", ReproductionController, :index_breeding
+    post "/breeding_records", ReproductionController, :create_breeding
+    put "/breeding_records/:id", ReproductionController, :update_breeding
+    post "/breeding_records/:id/confirm", ReproductionController, :confirm_breeding
+    get "/gestations", ReproductionController, :index_gestations
+    get "/lactation_records", ReproductionController, :index_lactation
+    post "/lactation_records", ReproductionController, :create_lactation
+    get "/lactation_records/summary", ReproductionController, :lactation_summary
+    get "/dry_off_schedules", ReproductionController, :index_dry_off
+    post "/dry_off_schedules", ReproductionController, :create_dry_off
+    get "/calving_events", ReproductionController, :index_calving
+    post "/calving_events", ReproductionController, :create_calving
+
+    # Stage 6: AI vet consult (multi-turn, non-streaming JSON)
+    post "/consult/sessions", ConsultController, :create_session
+    post "/consult/sessions/:session_id/messages", ConsultController, :send_message
+    get "/consult/sessions/:session_id/history", ConsultController, :history
 
     # Digital Twin (per-cow)
     get "/cows/:cow_id/twin", DigitalTwinController, :show
@@ -98,6 +118,10 @@ defmodule LivestokOsWeb.Router do
     resources "/geofences", GeofenceController, except: [:new, :edit]
     get "/geofence_events", GeofenceEventController, :index
 
+    # Paddock dashboard (NDVI health, rotation, live map)
+    get "/paddocks/overview", PaddockController, :overview
+    post "/paddocks/:id/rotate", PaddockController, :rotate
+
     # Virtual-fence deterrent commands (collar firmware polling — LoRaWAN uplink-only)
     get "/farms/:farm_id/cows/:cow_id/pending_deterrent_commands",
         DeterrentCommandController,
@@ -114,7 +138,16 @@ defmodule LivestokOsWeb.Router do
 
     # Admin-only endpoints
     get "/admin/farms", AdminController, :list_farms
+    get "/admin/devices", AdminController, :list_devices
+    get "/admin/farms/:farm_id/ledger", AdminController, :ledger
     delete "/admin/cows/:cow_id/history", AdminController, :reset_cow_history
     delete "/admin/farms/:farm_id/telemetry", AdminController, :reset_farm_telemetry
+
+    # Stage 6 AI oversight (super_admin QC — not cow consult)
+    get "/admin/ai/confirmed_cases", AdminAiController, :list_confirmed_cases
+    post "/admin/ai/confirmed_cases/:id/revoke", AdminAiController, :revoke_confirmed_case
+    get "/admin/ai/research_articles", AdminAiController, :list_research_articles
+    get "/admin/ai/research/ingestion_status", AdminAiController, :ingestion_status
+    post "/admin/ai/research/trigger_ingestion", AdminAiController, :trigger_ingestion
   end
 end

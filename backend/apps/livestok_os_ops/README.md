@@ -1,8 +1,11 @@
 # livestok_os_ops
 
-> **Farm operations engine** — grazing events, geofence enforcement, carbon
-> accounting, zero-grazing workflows, and operational advisors. Built for fault
-> isolation so satellite or AI failures never break core farm safety logic.
+> **Farm operations engine** — proactive alert generation, geofence enforcement,
+> carbon accounting, and heat-stress monitoring. Built for fault isolation.
+
+**Hackathon role:** Generates **plain-language operational advisories** (paddock
+rotation, overgrazing, heat stress) that field operators **Dismiss / Resolve**
+from the Farm PWA. See [HACKATHON.md](../../../HACKATHON.md).
 
 ---
 
@@ -32,7 +35,7 @@ livestok_os_core (schemas)
 | `LivestokOs.Operations` | Grazing events, alerts, zone transitions, daily analysis |
 | `LivestokOs.Infrastructure` | Geofence CRUD, geofence events, deterrent commands |
 | `LivestokOs.Infrastructure.GeofenceEnforcer` | Point-in-polygon/circle breach detection |
-| `LivestokOs.Operations.GrazingCoach` | Methane, overgrazing, and heat-stress advisory alerts |
+| `LivestokOs.Operations.GrazingCoach` | Heat-stress / overgrazing **operational advisories** (not sports coaching) |
 | `LivestokOs.Operations.GrazingCoachServer` | Periodic coach checks via isolated Tasks |
 | `LivestokOs.Operations.Verifier` | Regenerative-grazing rotation verification |
 | `LivestokOs.Operations.PaddockCompliance` | Paddock compliance scoring |

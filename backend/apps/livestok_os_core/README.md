@@ -3,6 +3,9 @@
 > **Shared domain layer** — schemas, Repo, and cross-cutting utilities used by
 > every other umbrella app.
 
+**Hackathon role:** PostGIS geofences (where), timestamped telemetry (when),
+paddock/compliance schemas (relative context). See [HACKATHON.md](../../../HACKATHON.md).
+
 ---
 
 ## Role in the umbrella

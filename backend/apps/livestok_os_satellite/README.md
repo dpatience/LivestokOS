@@ -1,8 +1,10 @@
 # livestok_os_satellite
 
-> **Satellite data subsystem** — NDVI capture, grass recovery projections, and
-> weather-driven forecasting. Intentionally isolated so provider outages never
-> affect geofencing, ingest, or the HTTP API.
+> **Satellite NDVI subsystem** — paddock grass health relative to the rest of
+> the farm. Fault-isolated from geofencing and ingest.
+
+**Hackathon role:** Supplies **relative** grass recovery signal for proactive
+paddock rotation advisories. See [HACKATHON.md](../../../HACKATHON.md).
 
 ---
 

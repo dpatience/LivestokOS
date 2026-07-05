@@ -1,5 +1,5 @@
-import type { Geofence } from "@livestok/api";
-import { Button, Field, TextInput } from "@livestok/ui";
+import type { CacheMeta, Geofence } from "@livestok/api";
+import { Button, Field, StalenessBadge, TextInput, farmCardRow } from "@livestok/ui";
 import { useCallback, useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { GeofenceMap, previewGeometry } from "../components/GeofenceMap";
@@ -10,17 +10,19 @@ export function GeofencesPage() {
   const { user, resources } = useAuth();
   const { showGeofences } = useFarmFeatures();
   const [geofences, setGeofences] = useState<Geofence[]>([]);
+  const [cacheMeta, setCacheMeta] = useState<CacheMeta | null>(null);
   const [name, setName] = useState("");
   const [vertices, setVertices] = useState<{ lng: number; lat: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (forceRefresh = false) => {
     setLoading(true);
     try {
-      const { data } = await resources.listGeofences({ limit: 100 });
+      const { data, meta } = await resources.listGeofencesCached({ limit: 100 }, { forceRefresh });
       setGeofences(data);
+      setCacheMeta(meta);
     } catch (err) {
       setError(formatApiError(err));
     } finally {
@@ -74,6 +76,9 @@ export function GeofencesPage() {
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-bold">Paddock geofences</h2>
+      {cacheMeta ? (
+        <StalenessBadge fetchedAt={cacheMeta.fetchedAt} isStale={cacheMeta.isStale} variant="farm" />
+      ) : null}
       <p className="text-sm text-farm-text-muted">
         Draw boundaries saved as{" "}
         <code className="text-farm-text">{`{ type: "polygon", coordinates: [[lng,lat],…] }`}</code>{" "}
@@ -114,7 +119,7 @@ export function GeofencesPage() {
         ) : (
           <ul className="space-y-2">
             {geofences.map((g) => (
-              <li key={g.id} className="rounded-farm border border-farm-border px-4 py-3">
+              <li key={g.id} className={`${farmCardRow} cursor-default hover:bg-farm-surface-alt`}>
                 <p className="font-semibold">{g.name}</p>
                 <p className="text-sm text-farm-text-muted">
                   {g.enforcement_scope} · {g.is_active ? "active" : "inactive"}

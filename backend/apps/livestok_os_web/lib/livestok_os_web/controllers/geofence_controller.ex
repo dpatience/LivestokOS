@@ -7,6 +7,8 @@ defmodule LivestokOsWeb.GeofenceController do
   action_fallback LivestokOsWeb.FallbackController
 
   def index(conn, params) do
+    farm_id = conn.assigns[:current_farm_id]
+    params = if farm_id, do: Map.put(params, "farm_id", farm_id), else: params
     geofences = Infrastructure.list_geofences(params)
     render(conn, :index, geofences: geofences)
   end

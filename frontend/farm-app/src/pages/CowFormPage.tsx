@@ -1,4 +1,4 @@
-import { Button, Card, Field, SelectInput, TextInput } from "@livestok/ui";
+import { Button, Card, Field, SelectInput, TextInput, farmLinkSecondary } from "@livestok/ui";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { formatApiError, useAuth } from "../context/AuthContext";
@@ -126,7 +126,7 @@ export function CowFormPage() {
           </Button>
           <Link
             to={isEdit && id ? `/herd/${id}` : "/herd"}
-            className="tap-target inline-flex flex-1 items-center justify-center rounded-farm border border-farm-border px-4 text-center font-semibold"
+            className={`${farmLinkSecondary} inline-flex flex-1 items-center justify-center py-3 text-center`}
           >
             Cancel
           </Link>

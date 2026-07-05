@@ -2,6 +2,7 @@ import { parseDeviceQrPayload } from "@livestok/api";
 import { BrowserQRCodeReader } from "@zxing/browser";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@livestok/ui";
+import { getCameraCapability } from "../lib/camera";
 
 export type QrScanState =
   | { status: "idle" }
@@ -28,6 +29,13 @@ export function QrScanner({ onSerial, disabled }: QrScannerProps) {
 
   const start = useCallback(async () => {
     if (disabled || !videoRef.current) return;
+
+    const cam = getCameraCapability();
+    if (!cam.supported) {
+      setState({ status: "error", message: cam.reason });
+      return;
+    }
+
     stop();
     setState({ status: "requesting" });
 

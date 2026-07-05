@@ -12,7 +12,12 @@
   },
   "peerDependencies": {
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.0.0",
+    "lucide-react": "^0.511.0"
+  },
+  "dependencies": {
+    "lucide-react": "^0.511.0"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",

@@ -1,9 +1,14 @@
 # LivestokOS Backend
 
-Backend-first livestock operating system for farms, herds, telemetry, grazing
-operations, digital twins, satellite insights, geofencing, carbon accounting,
-and zero-grazing workflows — built as an **Elixir umbrella** with strict OTP
-fault isolation between subsystems.
+Backend for a **field-site operations agent** — fuses streaming LoRaWAN telemetry,
+geofence events, and satellite NDVI into a live situational model, then surfaces
+proactive advisories operators can override from the Farm PWA.
+
+Built as an **Elixir umbrella** with strict OTP fault isolation: satellite and
+inference failures must not break geofencing or ingest.
+
+> **Hackathon:** Primary judge path is the Farm PWA alert loop, not admin views.
+> See [HACKATHON.md](../HACKATHON.md) and [README.md](../README.md).
 
 ---
 
@@ -22,7 +27,7 @@ backend/
     ├── livestok_os_ops/             Grazing, geofences, carbon, zero-grazing
     ├── livestok_os_twin/            Per-cow digital twin GenServers
     ├── livestok_os_satellite/       NDVI jobs, grass recovery (isolated)
-    ├── livestok_os_ai/              Vet consult RAG, research & propose loop
+    ├── livestok_os_ai/              Advisory inference + paddock ranking (Crusoe-ready)
     └── livestok_os_web/             Phoenix HTTP API (Bandit + Guardian JWT)
 ```
 
@@ -33,7 +38,7 @@ backend/
 | `livestok_os_ops` | [README](apps/livestok_os_ops/README.md) | Farm operations and carbon ledger |
 | `livestok_os_twin` | [README](apps/livestok_os_twin/README.md) | Real-time per-cow digital twins |
 | `livestok_os_satellite` | [README](apps/livestok_os_satellite/README.md) | Satellite NDVI (fault-isolated) |
-| `livestok_os_ai` | [README](apps/livestok_os_ai/README.md) | AI consult, RAG, research pipelines |
+| `livestok_os_ai` | [README](apps/livestok_os_ai/README.md) | Paddock ranking, Crusoe inference, proposal workers |
 | `livestok_os_web` | [README](apps/livestok_os_web/README.md) | HTTP API and authentication |
 
 ### Dependency graph
@@ -57,7 +62,8 @@ livestok_os_core
 - **OTP for hot paths** — digital twins and real-time state run as supervised processes, not ad-hoc tasks.
 - **Fault isolation** — satellite and AI subsystems can fail without breaking geofencing, ingest, or the HTTP API.
 - **Ingestion over chatty reads** — telemetry flows through a dedicated Broadway pipeline.
-- **AI research and propose** — the AI grows the RAG corpus and writes Markdown proposals; humans merge changes.
+- **AI research and propose** — workers write Markdown proposals; humans merge. Inference via Crusoe-compatible API.
+- **Operator override** — alert resolve API; grazing recommendation debounce (24h).
 
 ---
 
@@ -71,7 +77,7 @@ livestok_os_core
 | Auth | Guardian JWT |
 | Jobs | Oban (single instance in ingest app) |
 | Pipeline | Broadway (telemetry backpressure) |
-| AI | OpenAI-compatible API via Req |
+| AI / inference | Crusoe Managed Inference (OpenAI-compatible) via `LLM_API_*` |
 | HTTP client | Req |
 
 ---
@@ -130,7 +136,9 @@ Copy `.env.example` to `.env` and set:
 | `SECRET_KEY_BASE` | Phoenix cookie signing |
 | `GUARDIAN_SECRET_KEY` | JWT signing |
 | `QR_SECRET` | Digital passport HMAC |
-| `OPENAI_API_KEY` | AI consult and embeddings |
+| `OPENAI_API_KEY` | Legacy fallback for inference (prefer `LLM_API_*`) |
+| `LLM_API_KEY` | Crusoe / OpenAI-compatible inference key |
+| `LLM_API_BASE_URL` | Crusoe Managed Inference base URL |
 | `SATELLITE_API_KEY` | Copernicus NDVI (omit for mock mode) |
 | `FRONTEND_URL` | CORS allowed origins (comma-separated) |
 | `PORT` | HTTP port (default 4000) |

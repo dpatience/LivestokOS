@@ -1,4 +1,4 @@
-import { Button, Field, TextInput } from "@livestok/ui";
+import { Button, Field, TextInput, farmLinkInline } from "@livestok/ui";
 import { useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { AuthLayout } from "../components/Layout";
@@ -57,7 +57,7 @@ export function LoginPage() {
         </Button>
         <p className="text-center text-sm text-farm-text-muted">
           New farmer?{" "}
-          <Link to="/register" className="font-semibold text-farm-primary underline">
+          <Link to="/register" className={farmLinkInline}>
             Create account
           </Link>
         </p>

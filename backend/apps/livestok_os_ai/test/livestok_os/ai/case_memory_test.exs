@@ -108,4 +108,74 @@ defmodule LivestokOs.AI.CaseMemoryTest do
       assert confirmed.confirmed_by_user_id == 42
     end
   end
+
+  describe "list_confirmed/1" do
+    test "returns only confirmed cases with farm and cow metadata" do
+      farm = create_farm()
+      cow = create_cow(farm.id)
+
+      {:ok, case_record} =
+        CaseMemory.store_unconfirmed(%{
+          farm_id: farm.id,
+          cow_id: cow.id,
+          situation_summary: "Listed confirmed case",
+          situation_embedding: @similar_embedding
+        })
+
+      {:ok, _} = CaseMemory.confirm_case(case_record.id, 1)
+
+      {:ok, _} =
+        CaseMemory.store_unconfirmed(%{
+          farm_id: farm.id,
+          cow_id: cow.id,
+          situation_summary: "Unconfirmed only",
+          situation_embedding: @similar_embedding
+        })
+
+      [listed | _] = CaseMemory.list_confirmed()
+      assert listed.id == case_record.id
+      assert listed.farm_name == farm.name
+      assert listed.cow_tag_id == cow.tag_id
+      assert listed.situation_summary =~ "Listed confirmed"
+    end
+  end
+
+  describe "revoke_case/1" do
+    test "clears confirmation so case is excluded from search" do
+      farm = create_farm()
+      cow = create_cow(farm.id)
+
+      {:ok, case_record} =
+        CaseMemory.store_unconfirmed(%{
+          farm_id: farm.id,
+          cow_id: cow.id,
+          situation_summary: "Case to revoke",
+          situation_embedding: @similar_embedding,
+          assistant_answer: "Prior answer"
+        })
+
+      {:ok, _} = CaseMemory.confirm_case(case_record.id, 7)
+      assert [_ | _] = CaseMemory.search_confirmed(@similar_embedding, farm.id)
+
+      {:ok, revoked} = CaseMemory.revoke_case(case_record.id)
+      assert is_nil(revoked.confirmed_at)
+      assert is_nil(revoked.confirmed_by_user_id)
+      assert CaseMemory.search_confirmed(@similar_embedding, farm.id) == []
+    end
+
+    test "returns error when case is not confirmed" do
+      farm = create_farm()
+      cow = create_cow(farm.id)
+
+      {:ok, case_record} =
+        CaseMemory.store_unconfirmed(%{
+          farm_id: farm.id,
+          cow_id: cow.id,
+          situation_summary: "Never confirmed",
+          situation_embedding: @similar_embedding
+        })
+
+      assert {:error, :not_confirmed} = CaseMemory.revoke_case(case_record.id)
+    end
+  end
 end

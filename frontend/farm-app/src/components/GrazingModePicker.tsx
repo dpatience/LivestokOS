@@ -1,5 +1,5 @@
 import { GRAZING_MODE_INFO, type GrazingMode } from "@livestok/api";
-import { Card } from "@livestok/ui";
+import { Card, farmInteractive } from "@livestok/ui";
 
 interface GrazingModePickerProps {
   value: GrazingMode;
@@ -27,10 +27,10 @@ export function GrazingModePicker({ value, onChange }: GrazingModePickerProps) {
               key={mode}
               type="button"
               onClick={() => onChange(mode)}
-              className={`w-full rounded-farm border-2 p-4 text-left transition-colors ${
+              className={`w-full rounded-farm border-2 p-4 text-left ${farmInteractive} ${
                 selected
                   ? "border-farm-primary bg-farm-primary/5"
-                  : "border-farm-border bg-farm-surface"
+                  : "border-farm-border bg-farm-surface hover:border-farm-primary/50 hover:bg-farm-surface-alt"
               }`}
             >
               <p className="text-farm-body font-bold text-farm-text">{info.title}</p>

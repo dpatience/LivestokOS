@@ -1,5 +1,5 @@
 import type { Cow, Device } from "@livestok/api";
-import { Card } from "@livestok/ui";
+import { Card, farmLinkInline } from "@livestok/ui";
 import { useCallback, useEffect, useState } from "react";
 import { CowSearchPicker } from "../components/CowSearchPicker";
 import { DiaryEntryForm } from "../components/DiaryEntryForm";
@@ -138,7 +138,7 @@ export function DiaryPage() {
       {selectedCow ? (
         <button
           type="button"
-          className="tap-target w-full text-sm font-semibold text-farm-primary underline"
+          className={`${farmLinkInline} tap-target w-full`}
           onClick={() => setSelectedCow(null)}
         >
           Pick a different cow

@@ -1,32 +1,75 @@
 defmodule LivestokOs.AI.LLMClient do
   @moduledoc """
-  HTTP client for OpenAI-compatible chat completion and embedding APIs.
+  HTTP client for chat and embedding APIs.
 
-  Reads `OPENAI_API_KEY` and `OPENAI_API_BASE_URL` from application config
-  (wired from env vars in `config/runtime.exs`).
+  Provider-agnostic via `LivestokOs.AI.LLMConfig`: set `LLM_API_KEY` and
+  `LLM_API_BASE_URL` for any OpenAI-compatible endpoint, or `LLM_API_STYLE=anthropic`
+  for Anthropic's Messages API (chat only).
 
-  All calls are executed through `LivestokOs.AI.TaskSupervisor` with a
-  30-second timeout to prevent slow/failing external calls from crashing
-  the request process.
+  All calls run through `LivestokOs.AI.TaskSupervisor` with a 30-second timeout.
 
   ## Injectable for testing
 
       Application.get_env(:livestok_os_ai, :llm_client, LivestokOs.AI.LLMClient)
   """
 
+  alias LivestokOs.AI.LLMConfig
+
   @timeout 30_000
+  @anthropic_version "2023-06-01"
 
   @doc """
-  Sends a chat completion request to the configured OpenAI-compatible API.
+  Sends a chat completion request to the configured provider.
 
   ## Options
-  - `:model` — model name (default: `"gpt-4o"`)
-  - `:temperature` — sampling temperature (default: `0.3`)
+  - `:model` — model name (default from `LLMConfig.chat_model/0`)
+  - `:temperature` — sampling temperature (default: `0.55`)
   - `:max_tokens` — max tokens in response (default: `2048`)
   """
   def chat_completion(messages, opts \\ []) do
-    model = Keyword.get(opts, :model, "gpt-4o")
-    temperature = Keyword.get(opts, :temperature, 0.3)
+    unless LLMConfig.configured?() do
+      {:error, :llm_not_configured}
+    else
+      case LLMConfig.api_style() do
+        "anthropic" -> anthropic_chat(messages, opts)
+        _ -> openai_chat(messages, opts)
+      end
+    end
+  end
+
+  @doc """
+  Generates an embedding vector for the given text.
+  Returns `{:ok, [float]}` on success. Not available for Anthropic style.
+  """
+  def embed(text) do
+    cond do
+      not LLMConfig.configured?() ->
+        {:error, :not_configured}
+
+      LLMConfig.api_style() == "anthropic" ->
+        {:error, :embeddings_not_supported}
+
+      true ->
+        body = %{
+          model: LLMConfig.embed_model(),
+          input: text
+        }
+
+        supervised_request(fn ->
+          Req.post(
+            "#{LLMConfig.base_url()}/embeddings",
+            json: body,
+            headers: openai_auth_headers(),
+            receive_timeout: @timeout
+          )
+        end)
+        |> handle_embed_response()
+    end
+  end
+
+  defp openai_chat(messages, opts) do
+    model = Keyword.get(opts, :model, LLMConfig.chat_model())
+    temperature = Keyword.get(opts, :temperature, 0.55)
     max_tokens = Keyword.get(opts, :max_tokens, 2048)
 
     body = %{
@@ -38,35 +81,74 @@ defmodule LivestokOs.AI.LLMClient do
 
     supervised_request(fn ->
       Req.post(
-        "#{base_url()}/chat/completions",
+        "#{LLMConfig.base_url()}/chat/completions",
         json: body,
-        headers: auth_headers(),
+        headers: openai_auth_headers(),
         receive_timeout: @timeout
       )
     end)
-    |> handle_chat_response()
+    |> handle_openai_chat_response()
   end
 
-  @doc """
-  Generates an embedding vector for the given text using `text-embedding-3-small`.
-  Returns `{:ok, [float]}` on success.
-  """
-  def embed(text) do
-    body = %{
-      model: "text-embedding-3-small",
-      input: text
-    }
+  defp anthropic_chat(messages, opts) do
+    model = Keyword.get(opts, :model, LLMConfig.chat_model())
+    max_tokens = Keyword.get(opts, :max_tokens, 2048)
+    temperature = Keyword.get(opts, :temperature, 0.55)
+
+    {system, chat_messages} = split_anthropic_messages(messages)
+
+    body =
+      %{
+        model: model,
+        max_tokens: max_tokens,
+        temperature: temperature,
+        messages: chat_messages
+      }
+      |> maybe_put_system(system)
 
     supervised_request(fn ->
       Req.post(
-        "#{base_url()}/embeddings",
+        "#{LLMConfig.base_url()}/messages",
         json: body,
-        headers: auth_headers(),
+        headers: anthropic_auth_headers(),
         receive_timeout: @timeout
       )
     end)
-    |> handle_embed_response()
+    |> handle_anthropic_chat_response()
   end
+
+  defp split_anthropic_messages(messages) do
+    {system_parts, chat} =
+      Enum.split_with(messages, fn m -> Map.get(m, "role") == "system" or Map.get(m, :role) == "system" end)
+
+    system =
+      system_parts
+      |> Enum.map(fn m -> Map.get(m, "content") || Map.get(m, :content) end)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.join("\n\n")
+
+    chat_messages =
+      Enum.flat_map(chat, fn m ->
+        role = normalize_role(m)
+        content = Map.get(m, "content") || Map.get(m, :content)
+
+        case role do
+          "user" -> [%{"role" => "user", "content" => content}]
+          "assistant" -> [%{"role" => "assistant", "content" => content}]
+          _ -> []
+        end
+      end)
+
+    {system, chat_messages}
+  end
+
+  defp normalize_role(m) do
+    (Map.get(m, "role") || Map.get(m, :role) || "user")
+    |> to_string()
+  end
+
+  defp maybe_put_system(body, ""), do: body
+  defp maybe_put_system(body, system), do: Map.put(body, :system, system)
 
   defp supervised_request(fun) do
     task =
@@ -83,7 +165,7 @@ defmodule LivestokOs.AI.LLMClient do
     end
   end
 
-  defp handle_chat_response({:ok, %Req.Response{status: 200, body: body}}) do
+  defp handle_openai_chat_response({:ok, %Req.Response{status: 200, body: body}}) do
     content =
       body
       |> Map.get("choices", [])
@@ -93,17 +175,31 @@ defmodule LivestokOs.AI.LLMClient do
     {:ok, content}
   end
 
-  defp handle_chat_response({:ok, %Req.Response{status: status, body: body}}) do
+  defp handle_openai_chat_response({:ok, %Req.Response{status: status, body: body}}) do
     {:error, {:api_error, status, body}}
   end
 
-  defp handle_chat_response({:error, :timeout}) do
-    {:error, :llm_unavailable}
+  defp handle_openai_chat_response({:error, :timeout}), do: {:error, :llm_unavailable}
+  defp handle_openai_chat_response({:error, reason}), do: {:error, {:llm_unavailable, reason}}
+
+  defp handle_anthropic_chat_response({:ok, %Req.Response{status: 200, body: body}}) do
+    content =
+      body
+      |> Map.get("content", [])
+      |> Enum.find_value("", fn
+        %{"type" => "text", "text" => text} -> text
+        _ -> nil
+      end)
+
+    {:ok, content}
   end
 
-  defp handle_chat_response({:error, reason}) do
-    {:error, {:llm_unavailable, reason}}
+  defp handle_anthropic_chat_response({:ok, %Req.Response{status: status, body: body}}) do
+    {:error, {:api_error, status, body}}
   end
+
+  defp handle_anthropic_chat_response({:error, :timeout}), do: {:error, :llm_unavailable}
+  defp handle_anthropic_chat_response({:error, reason}), do: {:error, {:llm_unavailable, reason}}
 
   defp handle_embed_response({:ok, %Req.Response{status: 200, body: body}}) do
     embedding =
@@ -119,23 +215,21 @@ defmodule LivestokOs.AI.LLMClient do
     {:error, {:api_error, status, body}}
   end
 
-  defp handle_embed_response({:error, :timeout}) do
-    {:error, :embedding_unavailable}
+  defp handle_embed_response({:error, :timeout}), do: {:error, :embedding_unavailable}
+  defp handle_embed_response({:error, reason}), do: {:error, {:embedding_unavailable, reason}}
+
+  defp openai_auth_headers do
+    [
+      {"authorization", "Bearer #{LLMConfig.api_key()}"},
+      {"content-type", "application/json"}
+    ]
   end
 
-  defp handle_embed_response({:error, reason}) do
-    {:error, {:embedding_unavailable, reason}}
-  end
-
-  defp api_key do
-    Application.get_env(:livestok_os_ai, :openai_api_key)
-  end
-
-  defp base_url do
-    Application.get_env(:livestok_os_ai, :openai_base_url, "https://api.openai.com/v1")
-  end
-
-  defp auth_headers do
-    [{"authorization", "Bearer #{api_key()}"}, {"content-type", "application/json"}]
+  defp anthropic_auth_headers do
+    [
+      {"x-api-key", LLMConfig.api_key()},
+      {"anthropic-version", @anthropic_version},
+      {"content-type", "application/json"}
+    ]
   end
 end

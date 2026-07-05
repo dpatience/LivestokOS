@@ -1,5 +1,38 @@
 import Config
 
+# Load backend/.env for local dev (does not override vars already in the shell).
+if config_env() != :test do
+  env_file = Path.expand("../.env", __DIR__)
+
+  if File.exists?(env_file) do
+    env_file
+    |> File.read!()
+    |> String.split("\n", trim: true)
+    |> Enum.each(fn line ->
+      line = String.trim(line)
+
+      cond do
+        line == "" or String.starts_with?(line, "#") ->
+          :ok
+
+        true ->
+          case String.split(line, "=", parts: 2) do
+            [key, value] ->
+              key = String.trim(key)
+              value = value |> String.trim() |> String.trim("\"") |> String.trim("'")
+
+              if System.get_env(key) in [nil, ""] do
+                System.put_env(key, value)
+              end
+
+            _ ->
+              :ok
+          end
+      end
+    end)
+  end
+end
+
 # config/runtime.exs is executed for all environments, including
 # during releases. It is executed after compilation and before the
 # system starts, so it is typically used to load production configuration
@@ -48,12 +81,22 @@ config :livestok_os_core, :qr_secret, qr_secret
 # Satellite API key (nil in dev defaults to simulation mode)
 config :livestok_os_ai, :satellite_api_key, System.get_env("SATELLITE_API_KEY")
 
-# OpenAI API configuration for AI consult features
-config :livestok_os_ai, :openai_api_key, System.get_env("OPENAI_API_KEY")
-
+# LLM — provider-agnostic (OpenAI-compatible or anthropic style)
 config :livestok_os_ai,
-       :openai_base_url,
-       System.get_env("OPENAI_API_BASE_URL") || "https://api.openai.com/v1"
+  llm_api_key:
+    System.get_env("LLM_API_KEY") ||
+      System.get_env("OPENAI_API_KEY") ||
+      System.get_env("ANTHROPIC_API_KEY") ||
+      System.get_env("CURSOR_API_KEY"),
+  llm_api_base_url:
+    System.get_env("LLM_API_BASE_URL") ||
+      System.get_env("OPENAI_API_BASE_URL") ||
+      System.get_env("ANTHROPIC_API_BASE_URL") ||
+      System.get_env("CURSOR_API_BASE_URL"),
+  llm_api_style: System.get_env("LLM_API_STYLE"),
+  llm_chat_model: System.get_env("LLM_CHAT_MODEL"),
+  llm_thinking_model: System.get_env("LLM_THINKING_MODEL"),
+  llm_embed_model: System.get_env("LLM_EMBED_MODEL")
 
 if config_env() == :prod do
   database_url =

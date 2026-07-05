@@ -1,6 +1,6 @@
 import type { Device } from "@livestok/api";
 import { executeUnpairDevice } from "@livestok/api";
-import { Button, Card } from "@livestok/ui";
+import { Button, Card, farmChip, farmInteractive, farmLinkInline, farmLinkPrimary, farmLinkSecondary } from "@livestok/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { formatApiError, useAuth } from "../context/AuthContext";
@@ -60,10 +60,7 @@ export function DevicesPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-xl font-bold">Necklace devices</h2>
-        <Link
-          to="/devices/pair"
-          className="tap-target inline-flex items-center justify-center rounded-farm bg-farm-primary px-4 text-farm-body font-semibold text-white"
-        >
+        <Link to="/devices/pair" className={farmLinkPrimary}>
           + Pair
         </Link>
       </div>
@@ -79,10 +76,10 @@ export function DevicesPage() {
             key={f}
             type="button"
             onClick={() => setFilter(f)}
-            className={`tap-target flex-1 rounded-farm border px-2 text-sm font-semibold ${
+            className={`${farmChip} flex-1 ${
               filter === f
                 ? "border-farm-primary bg-farm-primary/10 text-farm-primary"
-                : "border-farm-border text-farm-text-muted"
+                : "border-farm-border text-farm-text-muted hover:border-farm-primary/40"
             }`}
           >
             {f === "all" ? "All" : f === "paired" ? "Paired" : "Unpaired"}
@@ -101,7 +98,7 @@ export function DevicesPage() {
       ) : filtered.length === 0 ? (
         <Card variant="farm">
           <p className="text-farm-text-muted">No devices found.</p>
-          <Link to="/devices/pair" className="mt-3 inline-block font-semibold text-farm-primary">
+          <Link to="/devices/pair" className={`mt-3 inline-block ${farmLinkInline}`}>
             Pair your first necklace
           </Link>
         </Card>
@@ -140,7 +137,7 @@ function DeviceRow({
 }) {
   const paired = device.cow !== null;
   return (
-    <li className="rounded-farm border border-farm-border bg-farm-surface-alt px-4 py-3">
+    <li className={`rounded-farm border border-farm-border bg-farm-surface-alt px-4 py-3 transition-colors hover:border-farm-primary/40 hover:bg-white`}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold text-farm-text">{device.serial}</p>
@@ -159,14 +156,14 @@ function DeviceRow({
               <>
                 <Link
                   to={`/devices/${device.id}/repair`}
-                  className="tap-target inline-flex items-center rounded-farm border border-farm-primary px-3 text-sm font-semibold text-farm-primary"
+                  className={`${farmLinkSecondary} !min-h-10 !px-3 text-sm !text-farm-primary`}
                 >
                   Re-pair
                 </Link>
                 <button
                   type="button"
                   disabled={busy}
-                  className="tap-target inline-flex items-center rounded-farm border border-farm-danger px-3 text-sm font-semibold text-farm-danger disabled:opacity-50"
+                  className={`${farmInteractive} tap-target inline-flex items-center rounded-farm border border-farm-danger px-3 text-sm font-semibold text-farm-danger hover:bg-farm-danger/5 focus-visible:ring-farm-danger disabled:opacity-50`}
                   onClick={onUnpair}
                 >
                   {busy ? "…" : "Unpair"}
@@ -175,7 +172,7 @@ function DeviceRow({
             ) : (
               <Link
                 to={`/devices/pair?serial=${encodeURIComponent(device.serial)}`}
-                className="tap-target inline-flex items-center rounded-farm bg-farm-primary px-3 text-sm font-semibold text-white"
+                className={`${farmLinkPrimary} !min-h-10 !px-3 text-sm`}
               >
                 Pair to cow
               </Link>

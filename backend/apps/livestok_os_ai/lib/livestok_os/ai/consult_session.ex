@@ -20,7 +20,9 @@ defmodule LivestokOs.AI.ConsultSession do
   """
   use GenServer
 
-  alias LivestokOs.AI.{CaseHistory, CaseMemory, ResearchCorpus, Grounding}
+  require Logger
+
+  alias LivestokOs.AI.{CaseHistoryFormatter, Grounding, LLMConfig, LocalResponder, Retrieval}
 
   @idle_timeout_ms 30 * 60 * 1_000
   @max_full_turns 10
@@ -85,20 +87,18 @@ defmodule LivestokOs.AI.ConsultSession do
     state = %{state | history: state.history ++ [user_entry]}
 
     case process_message(state, user_message) do
-      {:ok, response, sources} ->
+      {:ok, reply} ->
         assistant_entry = %{
           role: :assistant,
-          content: response,
-          timestamp: DateTime.utc_now()
+          content: reply.response,
+          timestamp: DateTime.utc_now(),
+          metadata: Map.drop(reply, [:response])
         }
 
         state = %{state | history: state.history ++ [assistant_entry]}
         state = maybe_summarize_old_turns(state)
 
-        {:reply, {:ok, %{response: response, sources: sources}}, state, @idle_timeout_ms}
-
-      {:error, reason} ->
-        {:reply, {:error, reason}, state, @idle_timeout_ms}
+        {:reply, {:ok, reply}, state, @idle_timeout_ms}
     end
   end
 
@@ -117,86 +117,92 @@ defmodule LivestokOs.AI.ConsultSession do
   defp process_message(state, user_message) do
     llm = llm_client()
 
-    case_history = CaseHistory.build(state.cow_id, state.farm_id)
+    retrieval =
+      Retrieval.gather(state.cow_id, state.farm_id, user_message, llm)
 
-    with {:ok, embedding} <- llm.embed(user_message) do
-      confirmed_cases = CaseMemory.search_confirmed(embedding, state.farm_id)
-      research = ResearchCorpus.search(embedding, 5)
+    classified = Grounding.classify_sources(retrieval.sources)
 
-      retrieval_results = build_retrieval_results(case_history, confirmed_cases, research)
-      classified = Grounding.classify_sources(retrieval_results)
+    result =
+      if LLMConfig.chat_configured?() do
+        respond_with_llm(state, user_message, retrieval, classified, llm)
+      else
+        respond_locally(user_message, retrieval, classified)
+      end
 
-      had_confirmed_match = has_confirmed_match?(confirmed_cases)
+    :telemetry.execute(
+      [:livestok_os, :ai, :consult_completed],
+      %{count: 1},
+      %{
+        farm_id: state.farm_id,
+        cow_id: state.cow_id,
+        llm_configured: LLMConfig.chat_configured?(),
+        used_vector_search: retrieval.used_vector_search,
+        source_count: length(retrieval.sources)
+      }
+    )
 
-      result =
-        if had_confirmed_match do
-          best = List.first(confirmed_cases)
+    result
+  end
 
-          response =
-            "Similar confirmed case found:\n\n#{best.situation_summary}\n\n" <>
-              "Previous answer: #{best.assistant_answer}"
+  defp respond_with_llm(state, user_message, retrieval, classified, llm) do
+    prompt = build_prompt(state, retrieval, classified, user_message)
+    model = LLMConfig.thinking_model()
 
-          {:ok, response, classified}
-        else
-          if all_empty?(retrieval_results) do
-            insufficient = Grounding.handle_insufficient_data(user_message, [])
-            {:ok, insufficient.message, classified}
-          else
-            prompt = build_prompt(state, case_history, classified, user_message)
+    case llm.chat_completion(prompt, model: model) do
+      {:ok, llm_response} when is_binary(llm_response) and llm_response != "" ->
+        attributed = Grounding.build_response_with_attribution(classified, llm_response)
 
-            case llm.chat_completion(prompt) do
-              {:ok, llm_response} ->
-                attributed = Grounding.build_response_with_attribution(classified, llm_response)
-                {:ok, attributed.response, classified}
+        {:ok, build_reply(attributed.response, classified)}
 
-              {:error, reason} ->
-                {:error, reason}
-            end
-          end
-        end
+      {:ok, _} ->
+        Logger.warning("[ConsultSession] thinking model #{model} returned empty response")
+        respond_locally_with_llm_fallback(user_message, retrieval, classified, :empty_response)
 
-      :telemetry.execute(
-        [:livestok_os, :ai, :consult_completed],
-        %{count: 1},
-        %{
-          farm_id: state.farm_id,
-          cow_id: state.cow_id,
-          had_confirmed_match: had_confirmed_match
-        }
-      )
-
-      result
+      {:error, reason} ->
+        Logger.warning("[ConsultSession] thinking model #{model} failed: #{inspect(reason)}")
+        respond_locally_with_llm_fallback(user_message, retrieval, classified, reason)
     end
   end
 
-  defp build_retrieval_results(case_history, confirmed_cases, research) do
-    own_data =
-      if case_history.timeline != [] do
-        [%{source: :case_history, data: %{timeline_count: length(case_history.timeline)}}]
-      else
-        []
-      end
-
-    cross_farm =
-      Enum.map(confirmed_cases, fn c ->
-        %{source: :confirmed_case, data: Map.from_struct(c)}
-      end)
-
-    research_data =
-      Enum.map(research, fn r ->
-        %{source: :research, data: r}
-      end)
-
-    own_data ++ cross_farm ++ research_data
+  defp respond_locally_with_llm_fallback(user_message, retrieval, classified, reason) do
+    {:ok, reply} = LocalResponder.respond(user_message, retrieval, classified, llm_fallback: reason)
+    {:ok, reply}
   end
 
-  defp has_confirmed_match?([_ | _]), do: true
-  defp has_confirmed_match?(_), do: false
+  defp respond_locally(user_message, retrieval, classified) do
+    {:ok, reply} = LocalResponder.respond(user_message, retrieval, classified)
+    {:ok, reply}
+  end
 
-  defp all_empty?(results), do: results == []
+  defp build_reply(response, classified, opts \\ []) do
+    %{
+      response: response,
+      sources: Enum.map(classified, &serialize_source/1),
+      insufficient_data: Keyword.get(opts, :insufficient_data, false),
+      confirmed_case_reused: Keyword.get(opts, :confirmed_case_reused, false),
+      confirmed_case: Keyword.get(opts, :confirmed_case),
+      recommended_next_steps: Keyword.get(opts, :recommended_next_steps),
+      attributions: build_attributions(classified),
+      local_only: Keyword.get(opts, :local_only, false)
+    }
+  end
 
-  defp build_prompt(state, case_history, classified, user_message) do
+  defp build_attributions(classified) do
+    classified
+    |> Enum.group_by(& &1.source_type)
+    |> Enum.map(fn {type, items} ->
+      %{source_type: Atom.to_string(type), count: length(items)}
+    end)
+  end
+
+  defp serialize_source(%{source_type: type, data: data}) do
+    %{source_type: Atom.to_string(type), data: data}
+  end
+
+  defp build_prompt(state, retrieval, classified, user_message) do
     system_prompt = load_system_prompt()
+    baseline = load_baseline_knowledge()
+    case_history = retrieval.case_history
 
     case_summary =
       "Cow #{state.cow_id} on farm #{state.farm_id}: " <>
@@ -204,17 +210,19 @@ defmodule LivestokOs.AI.ConsultSession do
 
     source_text =
       classified
-      |> Enum.map(fn %{source_type: type, data: data} ->
-        "[#{type}] #{inspect(data)}"
-      end)
-      |> Enum.join("\n")
+      |> CaseHistoryFormatter.format_sources()
 
     conversation_context = format_conversation_history(state)
 
+    thinking_note =
+      "First, interpret what the farmer is asking in plain language. Then answer using only the records below — do not invent data."
+
     [
       %{role: "system", content: system_prompt},
+      %{role: "system", content: "Baseline veterinary knowledge:\n#{baseline}"},
       %{role: "system", content: "Case history summary: #{case_summary}"},
-      %{role: "system", content: "Retrieved sources:\n#{source_text}"}
+      %{role: "system", content: thinking_note},
+      %{role: "system", content: "Retrieved sources (local database first):\n#{source_text}"}
     ] ++
       conversation_context ++
       [%{role: "user", content: user_message}]
@@ -251,6 +259,15 @@ defmodule LivestokOs.AI.ConsultSession do
   end
 
   defp maybe_summarize_old_turns(state), do: state
+
+  defp load_baseline_knowledge do
+    priv_dir = :code.priv_dir(:livestok_os_ai)
+
+    case File.read(Path.join(priv_dir, "prompts/baseline_vet_knowledge.txt")) do
+      {:ok, content} -> content
+      {:error, _} -> ""
+    end
+  end
 
   defp load_system_prompt do
     priv_dir = :code.priv_dir(:livestok_os_ai)

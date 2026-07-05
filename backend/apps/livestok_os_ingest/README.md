@@ -1,8 +1,10 @@
 # livestok_os_ingest
 
-> **Telemetry ingestion spine** — LoRaWAN gateway entry, Broadway backpressure,
-> sensor persistence, geofence checks, and the shared Oban scheduler for the
-> entire umbrella.
+> **Streaming input spine** — LoRaWAN gateway entry, Broadway backpressure,
+> geofence checks on every reading, twin dispatch, shared Oban scheduler.
+
+**Hackathon role:** Feeds the agent's **live situational model** with continuous
+collar telemetry. See [HACKATHON.md](../../../HACKATHON.md).
 
 ---
 

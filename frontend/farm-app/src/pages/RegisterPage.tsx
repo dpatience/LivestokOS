@@ -1,5 +1,5 @@
 import type { GrazingMode } from "@livestok/api";
-import { Button, Field, TextInput } from "@livestok/ui";
+import { Button, Field, TextInput, farmLinkInline } from "@livestok/ui";
 import { useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { GrazingModePicker } from "../components/GrazingModePicker";
@@ -96,7 +96,7 @@ export function RegisterPage() {
 
         <p className="text-center text-sm text-farm-text-muted">
           Already registered?{" "}
-          <Link to="/login" className="font-semibold text-farm-primary underline">
+          <Link to="/login" className={farmLinkInline}>
             Sign in
           </Link>
         </p>

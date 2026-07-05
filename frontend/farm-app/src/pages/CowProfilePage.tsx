@@ -1,5 +1,5 @@
 import type { Cow } from "@livestok/api";
-import { Button, Card } from "@livestok/ui";
+import { Bot, Button, Card, ChevronLeft, farmCardRow, farmLinkInline, farmLinkPrimary } from "@livestok/ui";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { formatApiError, useAuth } from "../context/AuthContext";
@@ -48,8 +48,9 @@ export function CowProfilePage() {
 
   return (
     <div className="space-y-4">
-      <Link to="/herd" className="text-sm font-semibold text-farm-primary">
-        ← Back to herd
+      <Link to="/herd" className={`inline-flex items-center gap-1 text-sm ${farmLinkInline}`}>
+        <ChevronLeft size={16} aria-hidden />
+        Back to herd
       </Link>
 
       <Card variant="farm">
@@ -85,9 +86,13 @@ export function CowProfilePage() {
 
       <div className="grid gap-2">
         <Link
-          to={`/herd/${cow.id}/edit`}
-          className="tap-target block rounded-farm bg-farm-primary px-4 py-3 text-center font-semibold text-white"
+          to={`/consult?cow_id=${cow.id}`}
+          className={`${farmCardRow} flex items-center justify-center gap-2 border-2 border-farm-primary bg-farm-primary/10 py-3 text-center font-semibold text-farm-primary`}
         >
+          <Bot size={20} aria-hidden />
+          AI consult about {cow.name}
+        </Link>
+        <Link to={`/herd/${cow.id}/edit`} className={`${farmLinkPrimary} block py-3 text-center`}>
           Edit cow
         </Link>
         <Button

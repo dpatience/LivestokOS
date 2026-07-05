@@ -2,6 +2,21 @@
 
 Locked-in decisions for all later stages. Read this before building screens.
 
+> **Hackathon:** The Farm PWA is the **primary operator surface** — proactive
+> alert cards with one-tap Dismiss, not a dashboard. Admin app is audit secondary.
+> Operational agent brief → [HACKATHON.md](../HACKATHON.md).
+
+## Primary UI: field operator alerts (not a dashboard)
+
+The hackathon judges a **field-site agent**, not a chart wall. The Farm app Home
+screen leads with:
+
+- **Unresolved alert count** → `/alerts`
+- **GrazingCoachCard** — plain-language paddock suggestions + **Dismiss**
+- **AlertsInbox** — geofence, heat, calving alerts + **Resolve**
+
+Admin app tables (fleet, ledger) exist for cross-farm audit — demo them second.
+
 ## Stack decision: Vite + React + TypeScript (not LiveView)
 
 **Chosen:** Two separate Vite + React + TypeScript PWAs.
@@ -38,7 +53,7 @@ They are two distinct installed apps, not one app with two modes.
 | Auth response | `{ data: { id, email, name, role, farm_id }, token }` |
 | Token refresh | **None** — no `/api/refresh` endpoint exists |
 | JWT claims | `sub`, `email`, `name`, `role`, `farm_id` (from Guardian.build_claims) |
-| CORS (dev) | `http://localhost:5173`, `http://localhost:5174` |
+| CORS (dev) | `http://localhost:5173`, `http://localhost:5174`, `http://localhost:4173`, `http://localhost:4174` |
 | CORS (prod) | `FRONTEND_URL` env var (comma-separated origins) |
 
 ## Real-time (verified: none for JSON clients)

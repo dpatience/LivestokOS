@@ -1,7 +1,11 @@
 # livestok_os_web
 
-> **Phoenix HTTP API** — JWT authentication, farm-scoped REST endpoints,
-> LoRaWAN ingest gateway, health checks, and fault-isolation hardening.
+> **Phoenix HTTP API** — JWT auth, farm-scoped REST, LoRaWAN ingest gateway,
+> alert resolve endpoints for operator override.
+
+**Hackathon role:** Exposes `PATCH /api/alerts/:id` resolve (one-tap override)
+and health checks for fault isolation. Farm PWA is the primary client.
+See [HACKATHON.md](../../../HACKATHON.md).
 
 ---
 
@@ -119,12 +123,21 @@ LivestokOsWeb.Supervisor (:one_for_one)
 | `PORT` | HTTP listen port (default: 4000) |
 | `SECRET_KEY_BASE` | Cookie signing |
 | `GUARDIAN_SECRET_KEY` | JWT signing |
-| `FRONTEND_URL` | Comma-separated CORS allowed origins |
+| `FRONTEND_URL` | Comma-separated CORS origins (merged with dev defaults) |
 | `PHX_HOST` | Production hostname |
 | `DNS_CLUSTER_QUERY` | Multi-node DNS discovery |
 
-CORS origins fall back to `http://localhost:3000` in dev when `FRONTEND_URL`
-is unset.
+Default dev/preview origins (`config/dev.exs`):
+
+```text
+http://localhost:4173   farm-app  (vite preview)
+http://localhost:4174   admin-app (vite preview)
+http://localhost:5173   farm-app  (vite dev)
+http://localhost:5174   admin-app (vite dev)
+```
+
+CORS uses `&LivestokOsWeb.Endpoint.cors_origins/1` — do not pass an MFA tuple
+to `CORSPlug`; cors_plug 3.x does not expand it and crashes on missing Origin.
 
 ---
 
@@ -144,6 +157,7 @@ mix test apps/livestok_os_web
 | `controllers/error_json_test.exs` | Error response format |
 | `fault_isolation_test.exs` | AI crash does not break farm endpoints |
 | `chaos_test.exs` | Kill supervisors; verify health + OTP restart |
+| `cors_test.exs` | CORS headers for both frontends, blank Origin safety |
 
 ---
 
@@ -164,7 +178,7 @@ mix test apps/livestok_os_web
 | `livestok_os_ingest` | Telemetry and LoRaWAN |
 | `livestok_os_ops` | Operations, carbon, geofences |
 | `livestok_os_twin` | Digital twin queries |
-| `livestok_os_ai` | Vet consult and GrazingCoach |
+| `livestok_os_ai` | Paddock ranking + context briefing (Crusoe inference) |
 | `phoenix` / `bandit` | HTTP server |
 | `guardian` | JWT authentication |
 | `cors_plug` | Cross-origin browser access |

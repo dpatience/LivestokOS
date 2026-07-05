@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { farmLinkPrimary, farmLinkSecondary } from "@livestok/ui";
 import { AuthLayout } from "../components/Layout";
 import { useAuth } from "../context/AuthContext";
 
@@ -16,15 +17,12 @@ export function NoFarmPage() {
           Your account is not linked to a farm. New farmers should use registration, which
           creates your farm and links it in one step.
         </p>
-        <Link
-          to="/register"
-          className="tap-target block rounded-farm bg-farm-primary px-4 py-3 text-center font-semibold text-white"
-        >
+        <Link to="/register" className={`${farmLinkPrimary} block py-3 text-center`}>
           Create farm account
         </Link>
         <button
           type="button"
-          className="tap-target w-full rounded-farm border border-farm-border px-4 py-3 font-semibold"
+          className={`${farmLinkSecondary} w-full py-3`}
           onClick={() => {
             logout();
             window.location.href = "/login";

@@ -1,5 +1,5 @@
 import type { Device } from "@livestok/api";
-import { Button, Card } from "@livestok/ui";
+import { Button, Card, Smartphone } from "@livestok/ui";
 import { useState } from "react";
 import { getNfcCapability, nfcLimitationText, readNfcSerial } from "../lib/nfc";
 import type { NfcReadState } from "../lib/nfc";
@@ -55,13 +55,11 @@ export function NfcCowIdentify({ devices, onCow, disabled }: NfcCowIdentifyProps
       <Button
         variant="farm"
         type="button"
-        className="h-auto w-full !min-h-tap flex-col py-5 text-lg"
+        className="h-auto w-full !min-h-tap flex-col gap-2 py-5 text-lg"
         disabled={disabled || state.status === "scanning"}
         onClick={() => void handleTap()}
       >
-        <span className="text-3xl" aria-hidden>
-          📲
-        </span>
+        <Smartphone size={32} aria-hidden />
         {state.status === "scanning" ? "Hold phone to necklace…" : "Tap necklace (NFC)"}
       </Button>
       <p className="text-xs text-farm-text-muted">{nfcLimitationText()}</p>

@@ -2,6 +2,10 @@ import {
   ApiClient,
   ApiError,
   FarmResources,
+  ConsultResources,
+  OperationsResources,
+  PaddockResources,
+  ReproductionResources,
   farmTokenStorage,
   type AuthUser,
   type Farm,
@@ -23,6 +27,10 @@ interface AuthContextValue {
   farm: Farm | null;
   api: ApiClient;
   resources: FarmResources;
+  operations: OperationsResources;
+  reproduction: ReproductionResources;
+  consult: ConsultResources;
+  paddocks: PaddockResources;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (payload: {
@@ -70,6 +78,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const resources = useMemo(() => new FarmResources(api), [api]);
+  const operations = useMemo(() => new OperationsResources(api), [api]);
+  const reproduction = useMemo(() => new ReproductionResources(api), [api]);
+  const consult = useMemo(() => new ConsultResources(api), [api]);
+  const paddocks = useMemo(() => new PaddockResources(api), [api]);
 
   const refreshFarm = useCallback(async () => {
     const current = claimsToUser(farmTokenStorage.getClaims());
@@ -149,6 +161,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       farm,
       api,
       resources,
+      operations,
+      reproduction,
+      consult,
+      paddocks,
       loading,
       login,
       register,
@@ -156,7 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refreshFarm,
       setFarm,
     }),
-    [user, farm, api, resources, loading, login, register, logout, refreshFarm],
+    [user, farm, api, resources, operations, reproduction, consult, paddocks, loading, login, register, logout, refreshFarm],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

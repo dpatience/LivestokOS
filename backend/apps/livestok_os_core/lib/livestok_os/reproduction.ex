@@ -373,6 +373,58 @@ defmodule LivestokOs.Reproduction do
   # Lactation records
   # ---------------------------------------------------------------------------
 
+  @doc "Returns all lactation records for a farm, farm-scoped."
+  def list_lactation_records(farm_id) do
+    from(l in LactationRecord,
+      where: l.farm_id == ^farm_id,
+      order_by: [desc: l.milking_date]
+    )
+    |> Repo.all()
+  end
+
+  @doc "Returns all dry-off schedules for a farm, farm-scoped."
+  def list_dry_off_schedules(farm_id) do
+    from(d in DryOffSchedule,
+      where: d.farm_id == ^farm_id,
+      order_by: [asc: d.scheduled_dry_off_date]
+    )
+    |> Repo.all()
+  end
+
+  @doc "Returns all calving events for a farm, farm-scoped."
+  def list_calving_events(farm_id) do
+    from(c in CalvingEvent,
+      where: c.farm_id == ^farm_id,
+      order_by: [desc: c.occurred_at]
+    )
+    |> Repo.all()
+  end
+
+  @doc "Returns a breeding record by id, farm-scoped."
+  def get_breeding_record!(id, farm_id) do
+    from(b in BreedingRecord, where: b.id == ^id and b.farm_id == ^farm_id)
+    |> Repo.one!()
+  end
+
+  @doc """
+  Creates a gestation and dry-off schedule from a confirmed breeding record.
+  """
+  def confirm_pregnancy(%BreedingRecord{} = record) do
+    Repo.transaction(fn ->
+      with {:ok, updated} <-
+             update_breeding_record(record, %{
+               outcome: :confirmed_pregnant,
+               confirmed_at: DateTime.utc_now()
+             }),
+           {:ok, gestation} <- create_gestation(updated),
+           {:ok, _schedule} <- create_dry_off_schedule(gestation) do
+        gestation
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
+  end
+
   @doc """
   Creates a lactation record for a cow. Farm-scoped.
 

@@ -2,17 +2,18 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 type Variant = "farm" | "admin";
 
+const baseInteractive =
+  "transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-[0.98] disabled:pointer-events-none";
+
+const variantClasses: Record<Variant, string> = {
+  farm: `${baseInteractive} bg-farm-primary text-white hover:bg-farm-primary-hover focus-visible:ring-farm-primary rounded-farm text-farm-body font-semibold`,
+  admin: `${baseInteractive} bg-admin-primary text-white hover:bg-admin-primary-hover focus-visible:ring-admin-accent rounded-admin text-admin-body font-medium`,
+};
+
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
   children: ReactNode;
 }
-
-const variantClasses: Record<Variant, string> = {
-  farm:
-    "bg-farm-primary text-white hover:bg-farm-primary-hover rounded-farm text-farm-body font-semibold",
-  admin:
-    "bg-admin-primary text-white hover:bg-admin-primary-hover rounded-admin text-admin-body font-medium",
-};
 
 export function Button({
   variant = "farm",
@@ -46,15 +47,15 @@ export function IconButton({
 }: IconButtonProps) {
   const surface =
     variant === "farm"
-      ? "bg-farm-surface-alt text-farm-text border-farm-border"
-      : "bg-admin-surface-alt text-admin-text border-admin-border";
+      ? "bg-farm-surface-alt text-farm-text border-farm-border hover:bg-farm-surface focus-visible:ring-farm-primary"
+      : "bg-admin-surface-alt text-admin-text border-admin-border hover:bg-white focus-visible:ring-admin-accent";
 
   return (
     <button
       type="button"
       aria-label={label}
       title={label}
-      className={`tap-target inline-flex items-center justify-center rounded-full border ${surface} ${className}`}
+      className={`tap-target inline-flex items-center justify-center rounded-full border ${baseInteractive} ${surface} ${className}`}
       {...props}
     >
       {children}
@@ -66,9 +67,10 @@ export interface AppShellProps {
   variant?: Variant;
   title: string;
   children: ReactNode;
+  nav?: ReactNode;
 }
 
-export function AppShell({ variant = "farm", title, children }: AppShellProps) {
+export function AppShell({ variant = "farm", title, children, nav }: AppShellProps) {
   const bg = variant === "farm" ? "bg-farm-surface" : "bg-admin-surface";
   const text = variant === "farm" ? "text-farm-text" : "text-admin-text";
   const header =
@@ -77,11 +79,12 @@ export function AppShell({ variant = "farm", title, children }: AppShellProps) {
       : "bg-admin-primary text-white";
 
   return (
-    <div className={`min-h-dvh flex flex-col ${bg} ${text}`}>
+    <div className={`flex min-h-dvh flex-col ${bg} ${text}`}>
       <header className={`${header} px-4 py-3 shadow-sm`}>
         <h1 className="text-lg font-bold tracking-tight">{title}</h1>
       </header>
-      <main className="flex-1 p-4">{children}</main>
+      <main className="flex-1 p-4 pb-24">{children}</main>
+      {nav}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import type { Cow } from "@livestok/api";
-import { Field, TextInput } from "@livestok/ui";
+import { Field, TextInput, farmCardRow } from "@livestok/ui";
 import { useMemo, useState } from "react";
 import { fuzzyFilterCows } from "../lib/fuzzy-search";
 import type { IdentifiedCow } from "./NfcCowIdentify";
@@ -30,7 +30,7 @@ export function CowSearchPicker({ cows, onSelect }: CowSearchPickerProps) {
           <li key={cow.id}>
             <button
               type="button"
-              className="tap-target w-full rounded-farm border border-farm-border bg-farm-surface-alt px-4 py-3 text-left"
+              className={`${farmCardRow} w-full text-left`}
               onClick={() => onSelect({ id: cow.id, name: cow.name, source: "search" })}
             >
               <p className="font-semibold text-farm-text">{cow.name}</p>

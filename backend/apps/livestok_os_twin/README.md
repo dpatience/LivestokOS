@@ -1,7 +1,10 @@
 # livestok_os_twin
 
-> **Per-cow digital twins** — real-time GenServer processes that translate
-> telemetry into live state, debounced alerts, and persistent behaviour logs.
+> **Per-cow situational state** — GenServer processes that fuse telemetry into
+> live behavioural state and debounced operational alerts.
+
+**Hackathon role:** Core of the **where / when / relative** model — each cow's
+twin updates on every streaming reading. See [HACKATHON.md](../../../HACKATHON.md).
 
 ---
 

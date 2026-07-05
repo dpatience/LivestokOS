@@ -15,8 +15,14 @@ defmodule LivestokOsWeb.Plugs.NormalizeOrigin do
 
   def call(conn, _opts) do
     case get_req_header(conn, "origin") do
-      [""] -> delete_req_header(conn, "origin")
-      _ -> conn
+      [origin | _] ->
+        if blank_origin?(origin), do: delete_req_header(conn, "origin"), else: conn
+
+      _ ->
+        conn
     end
   end
+
+  defp blank_origin?(origin) when is_binary(origin), do: String.trim(origin) == ""
+  defp blank_origin?(_), do: false
 end

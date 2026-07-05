@@ -14,8 +14,40 @@ defmodule LivestokOs.AI.CaseMemory do
   import Ecto.Query, warn: false
   alias LivestokOs.Repo
   alias LivestokOs.AI.ConfirmedCase
+  alias LivestokOs.Inventory.{Cow, Farm}
 
   @default_threshold 0.92
+
+  @doc """
+  Keyword search on confirmed cases (no embedding API). Runs before vector search.
+  """
+  def search_by_keywords(query, farm_id, limit \\ 5) do
+    terms = keyword_terms(query)
+
+    if terms == [] do
+      []
+    else
+      dynamic =
+        terms
+        |> Enum.map(fn term ->
+          pat = "%#{term}%"
+
+          dynamic(
+            [c],
+            ilike(c.situation_summary, ^pat) or ilike(c.assistant_answer, ^pat)
+          )
+        end)
+        |> Enum.reduce(fn clause, acc -> dynamic(^acc or ^clause) end)
+
+      from(c in ConfirmedCase,
+        where: c.farm_id == ^farm_id and not is_nil(c.confirmed_at),
+        where: ^dynamic,
+        order_by: [desc: c.confirmed_at],
+        limit: ^limit
+      )
+      |> Repo.all()
+    end
+  end
 
   @doc """
   Searches confirmed cases by cosine similarity to `embedding`, scoped to `farm_id`.
@@ -70,5 +102,81 @@ defmodule LivestokOs.AI.CaseMemory do
         })
         |> Repo.update()
     end
+  end
+
+  @doc """
+  Lists vet-confirmed cases for admin oversight (confirmed_at IS NOT NULL).
+
+  Returns citation-style metadata plus summaries for review. Does not expose
+  embeddings.
+  """
+  def list_confirmed(opts \\ []) do
+    limit = Keyword.get(opts, :limit, 200)
+    farm_id = Keyword.get(opts, :farm_id)
+
+    base =
+      from(c in ConfirmedCase,
+        where: not is_nil(c.confirmed_at),
+        left_join: f in Farm,
+        on: f.id == c.farm_id,
+        left_join: cow in Cow,
+        on: cow.id == c.cow_id,
+        order_by: [desc: c.confirmed_at],
+        limit: ^limit,
+        select: %{
+          id: c.id,
+          farm_id: c.farm_id,
+          farm_name: f.name,
+          cow_id: c.cow_id,
+          cow_name: cow.name,
+          cow_tag_id: cow.tag_id,
+          situation_summary: c.situation_summary,
+          assistant_answer: c.assistant_answer,
+          confirmed_at: c.confirmed_at,
+          confirmed_by_user_id: c.confirmed_by_user_id,
+          inserted_at: c.inserted_at
+        }
+      )
+
+    query =
+      if farm_id do
+        from([c, f, cow] in base, where: c.farm_id == ^farm_id)
+      else
+        base
+      end
+
+    Repo.all(query)
+  end
+
+  @doc """
+  Revokes vet confirmation by clearing `confirmed_at` and `confirmed_by_user_id`.
+
+  The case row remains in the database but is excluded from similarity search
+  until a vet confirms it again.
+  """
+  def revoke_case(case_id) do
+    case Repo.get(ConfirmedCase, case_id) do
+      nil ->
+        {:error, :not_found}
+
+      %{confirmed_at: nil} ->
+        {:error, :not_confirmed}
+
+      record ->
+        record
+        |> ConfirmedCase.changeset(%{confirmed_at: nil, confirmed_by_user_id: nil})
+        |> Repo.update()
+    end
+  end
+
+  defp keyword_terms(query) do
+    stop = MapSet.new(~w(the a an is are was were what how when why this that for and or but with from about))
+
+    query
+    |> String.downcase()
+    |> String.replace(~r/[^\p{L}\p{N}\s]/u, " ")
+    |> String.split(~r/\s+/, trim: true)
+    |> Enum.reject(&(String.length(&1) < 3 or MapSet.member?(stop, &1)))
+    |> Enum.take(5)
   end
 end

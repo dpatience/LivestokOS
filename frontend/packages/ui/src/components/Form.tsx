@@ -9,9 +9,9 @@ const labelClass: Record<Variant, string> = {
 
 const inputClass: Record<Variant, string> = {
   farm:
-    "w-full min-h-tap rounded-farm border border-farm-border bg-farm-surface px-3 text-farm-body text-farm-text placeholder:text-farm-text-muted focus:outline-none focus:ring-2 focus:ring-farm-primary",
+    "w-full min-h-tap rounded-farm border border-farm-border bg-farm-surface px-3 text-farm-body text-farm-text placeholder:text-farm-text-muted transition-colors hover:border-farm-primary/40 focus:outline-none focus:ring-2 focus:ring-farm-primary focus-visible:ring-2 focus-visible:ring-farm-primary",
   admin:
-    "w-full min-h-tap rounded-admin border border-admin-border bg-admin-surface px-3 text-admin-body text-admin-text placeholder:text-admin-text-muted focus:outline-none focus:ring-2 focus:ring-admin-accent",
+    "w-full min-h-tap rounded-admin border border-admin-border bg-admin-surface px-3 text-admin-body text-admin-text placeholder:text-admin-text-muted transition-colors hover:border-admin-accent/40 focus:outline-none focus:ring-2 focus:ring-admin-accent focus-visible:ring-2 focus-visible:ring-admin-accent",
 };
 
 export interface FieldProps {
@@ -64,8 +64,12 @@ export interface CardProps {
 }
 
 export function Card({ variant = "farm", children, className = "" }: CardProps) {
-  const border = variant === "farm" ? "border-farm-border bg-farm-surface-alt" : "border-admin-border bg-admin-surface-alt";
+  const border =
+    variant === "farm"
+      ? "border-farm-border bg-farm-surface-alt"
+      : "border-admin-border bg-admin-surface-alt";
+  const radius = variant === "farm" ? "rounded-farm" : "rounded-admin";
   return (
-    <div className={`rounded-farm border p-4 ${border} ${className}`}>{children}</div>
+    <div className={`border p-4 ${radius} ${border} ${className}`}>{children}</div>
   );
 }

@@ -1,12 +1,16 @@
-import { AppShell, Button } from "@livestok/ui";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { BottomNav, Button, NavItem } from "@livestok/ui";
+import {
+  Activity,
+  ClipboardList,
+  Home,
+  Map,
+  NotebookPen,
+  Radio,
+  Stethoscope,
+} from "@livestok/ui";
 import { useAuth } from "../context/AuthContext";
 import { useFarmFeatures } from "../hooks/useFarmFeatures";
-
-const navClass = ({ isActive }: { isActive: boolean }) =>
-  `tap-target flex flex-1 flex-col items-center justify-center gap-1 text-xs font-semibold ${
-    isActive ? "text-farm-primary" : "text-farm-text-muted"
-  }`;
+import { Outlet, useNavigate } from "react-router-dom";
 
 export function FarmLayout() {
   const { user, farm, logout } = useAuth();
@@ -38,32 +42,26 @@ export function FarmLayout() {
         <Outlet />
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 border-t border-farm-border bg-farm-surface shadow-[0_-4px_12px_rgba(0,0,0,0.08)]">
-        <div className="mx-auto flex max-w-lg">
-          <NavLink to="/" end className={navClass}>
-            <span aria-hidden>🏠</span>
-            Home
-          </NavLink>
-          <NavLink to="/herd" className={navClass}>
-            <span aria-hidden>🐄</span>
-            Herd
-          </NavLink>
-          {showGeofences ? (
-            <NavLink to="/geofences" className={navClass}>
-              <span aria-hidden>🗺️</span>
-              Paddocks
-            </NavLink>
-          ) : null}
-          <NavLink to="/devices" className={navClass}>
-            <span aria-hidden>📡</span>
-            Devices
-          </NavLink>
-        </div>
-      </nav>
+      <BottomNav variant="farm">
+        <NavItem to="/consult" icon={<Stethoscope size={20} />} label="AI" variant="farm" />
+        <NavItem to="/" end icon={<NotebookPen size={20} />} label="Diary" variant="farm" />
+        <NavItem to="/herd" icon={<Activity size={20} />} label="Herd" variant="farm" />
+        {showGeofences ? (
+          <NavItem to="/paddocks" icon={<Map size={20} />} label="Paddocks" variant="farm" />
+        ) : null}
+        <NavItem to="/devices" icon={<Radio size={20} />} label="Devices" variant="farm" />
+        <NavItem to="/home" icon={<Home size={20} />} label="Home" variant="farm" />
+        <NavItem to="/alerts" icon={<ClipboardList size={20} />} label="Alerts" variant="farm" />
+      </BottomNav>
     </div>
   );
 }
 
 export function AuthLayout({ title, children }: { title: string; children: React.ReactNode }) {
-  return <AppShell variant="farm" title={title}>{children}</AppShell>;
+  return (
+    <div className="min-h-dvh bg-farm-surface p-4">
+      <h1 className="mb-4 text-lg font-bold">{title}</h1>
+      {children}
+    </div>
+  );
 }

@@ -4,7 +4,7 @@ import {
   executePairDevice,
   planPairDevice,
 } from "@livestok/api";
-import { Button, Card, Field, SelectInput, TextInput } from "@livestok/ui";
+import { Button, Card, Field, SelectInput, TextInput, ChevronLeft, farmInteractive, farmLinkInline } from "@livestok/ui";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { NfcPanel } from "../components/NfcPanel";
@@ -101,8 +101,9 @@ export function PairDevicePage() {
 
   return (
     <div className="space-y-4">
-      <Link to="/devices" className="text-sm font-semibold text-farm-primary">
-        ← Back to devices
+      <Link to="/devices" className={`inline-flex items-center gap-1 text-sm ${farmLinkInline}`}>
+        <ChevronLeft size={16} aria-hidden />
+        Back to devices
       </Link>
 
       <h2 className="text-xl font-bold">
